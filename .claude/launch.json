@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Vite Dev Server",
+      "runtimeExecutable": "C:\\Users\\dilee\\Documents\\Job_Search_Copilot\\dev.cmd",
+      "runtimeArgs": [],
+      "port": 5173
+    }
+  ]
+}

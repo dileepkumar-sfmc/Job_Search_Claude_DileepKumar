@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Canvas & Surfaces */
+  --canvas: #010102;
+  --surface-1: #0f1117;
+  --surface-2: #1a1d27;
+  --surface-3: #23262f;
+  --surface-4: #2d3040;
+
+  /* Borders */
+  --hairline: #23252a;
+  --hairline-strong: #3a3d47;
+  --hairline-tertiary: #2e3038;
+
+  /* Brand */
+  --primary: #5e6ad2;
+  --primary-hover: #828fff;
+  --primary-focus: #5e69d1;
+  --brand-secure: #7a7fad;
+
+  /* Text */
+  --ink: #f7f8f8;
+  --ink-muted: #d0d6e0;
+  --ink-subtle: #8a8f98;
+  --ink-tertiary: #62666d;
+
+  /* Semantic */
+  --semantic-success: #27a644;
+  --semantic-overlay: rgba(0, 0, 0, 0.72);
+
+  /* Per-column status accents (product-UI palette) */
+  --status-wishlist: #8a8f98;
+  --status-applied: #4ea7fc;
+  --status-interview: #f2c94c;
+  --status-offer: #27a644;
+  --status-rejected: #eb5757;
+
+  /* Inverse (for light pill CTAs) */
+  --inverse-canvas: #ffffff;
+  --inverse-surface-1: #f4f4f5;
+  --inverse-ink: #09090b;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: 'Inter', 'SF Pro Display', -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Atmosphere ──────────────────────────────────────────────────────────── */
+/* Faint top ambient glow + grain overlay give the dark canvas tactile depth.
+   No drop shadows — depth is surface ladder + hairlines + edge highlights. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(94, 106, 210, 0.06), transparent 60%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-4);
+}
+
+/* ── Signature top-edge highlight on lifted panels ───────────────────────── */
+.edge-top {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.045);
+}
+.edge-top-strong {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-up { animation: fadeUp 0.5s var(--ease-out-expo) both; }
+.animate-scale-in { animation: scaleIn 0.26s var(--ease-out-expo) both; }
+.animate-slide-in-right { animation: slideInRight 0.34s var(--ease-out-expo) both; }
+.animate-overlay-in { animation: overlayIn 0.2s ease both; }
+.animate-spin-slow { animation: spin 0.9s linear infinite; display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
