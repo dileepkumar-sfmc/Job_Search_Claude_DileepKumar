@@ -27,6 +27,8 @@ Pure client-side React + TypeScript app. No backend — all AI calls go directly
 - `server/.env.example` documents the format — copy it to `server/.env` to get started.
 - Primary provider is **OpenRouter** (`VITE_OPENROUTER_API_KEY`, `VITE_OPENROUTER_MODEL`). Direct Anthropic and OpenAI keys are also supported.
 - Env vars are loaded as defaults in `src/store/settings.ts`; the Settings UI can override them at runtime (stored in localStorage).
+- **The API key only auto-loads in dev.** Vite inlines `VITE_*` into the bundle at build time, so shipping a built-in key would expose it to every visitor. `ENV_KEY` in `src/store/settings.ts` is gated behind `import.meta.env.DEV` — in a production build it constant-folds to `''` (verified: the key string does not appear in `dist/`). The non-secret model/provider env vars still load in prod; production users supply their own key via Settings. **Do not disable minification** for prod builds — key-stripping relies on dead-code elimination.
+- The job-URL fetch (`src/lib/jobScraper.ts`) validates the URL is plain http(s) (no `javascript:`/`data:`/credentials) before routing it through the third-party CORS proxy. Untrusted URLs from AI search results / job cards are run through `safeHttpUrl()` (`src/lib/url.ts`) before being rendered as an `href` — anything else renders as plain text.
 - **Restart the dev server** after editing `server/.env` — Vite only reads env vars on startup.
 
 ### State (Zustand + persist middleware)

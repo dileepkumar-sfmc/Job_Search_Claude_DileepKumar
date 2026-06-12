@@ -1,0 +1,11 @@
+# Never upload the secret env file to the build environment.
+# (Even if it were uploaded, VITE_* keys are gated behind import.meta.env.DEV
+# and stripped from production builds — this is belt-and-suspenders.)
+server/.env
+
+# Local build output — Vercel rebuilds from source.
+dist
+
+# Dev-only tooling and editor cruft.
+.claude
+node_modules

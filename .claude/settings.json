@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy RemoteSigned -File \"$CLAUDE_PROJECT_DIR\\.claude\\hooks\\update-claudemd.ps1\""
+          }
+        ]
+      }
+    ]
+  }
+}

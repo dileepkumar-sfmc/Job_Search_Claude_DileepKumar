@@ -113,6 +113,9 @@ export function AddJobModal({ defaultColumn, onClose }: Props) {
                 {urlError}
               </p>
             )}
+            <p className="text-[11px] text-ink-tertiary">
+              Fetching sends the URL to a third-party reader service (allorigins.win). For a private listing, paste the text below instead.
+            </p>
           </div>
 
           {/* Text area */}

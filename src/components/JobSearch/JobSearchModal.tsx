@@ -3,6 +3,7 @@ import type { SearchPrefs, JobSearchResult } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
 import { searchJobs } from '../../lib/ai';
+import { safeHttpUrl } from '../../lib/url';
 
 interface Props {
   onClose: () => void;
@@ -217,6 +218,7 @@ export function JobSearchModal({ onClose }: Props) {
               {results.map((r, i) => {
                 const key = `${norm(r.title)}@${norm(r.company)}`;
                 const added = addedKeys.has(key) || existingKeys.has(key);
+                const safeUrl = safeHttpUrl(r.url);
                 return (
                   <div
                     key={i}
@@ -247,9 +249,9 @@ export function JobSearchModal({ onClose }: Props) {
                       </button>
                     </div>
                     {r.fit && <p className="text-[12px] text-ink-subtle mt-2 leading-relaxed">{r.fit}</p>}
-                    {r.url && (
+                    {safeUrl && (
                       <a
-                        href={r.url}
+                        href={safeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover mt-2"

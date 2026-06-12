@@ -2,11 +2,18 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AIProvider } from '../types';
 
-const ENV_KEY =
-  (import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined) ||
-  (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) ||
-  (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ||
-  '';
+// SECURITY: Vite inlines `import.meta.env.VITE_*` into the bundle at build time,
+// so a built-in key would ship in plaintext to every visitor of a production
+// build. Only auto-load the key from server/.env during local development
+// (`import.meta.env.DEV`). In a production build `DEV` is `false`, so this whole
+// expression constant-folds to '' and the key literal is stripped from the
+// output — end users must supply their own key at runtime via Settings.
+const ENV_KEY = import.meta.env.DEV
+  ? (import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined) ||
+    (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) ||
+    (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ||
+    ''
+  : '';
 const ENV_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as AIProvider | undefined) || 'openrouter';
 const ENV_MODEL = (import.meta.env.VITE_OPENROUTER_MODEL as string | undefined) || 'anthropic/claude-sonnet-4-6';
 const ENV_SEARCH_MODEL = (import.meta.env.VITE_OPENROUTER_SEARCH_MODEL as string | undefined) || 'perplexity/sonar-pro';

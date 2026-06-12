@@ -3,6 +3,7 @@ import type { Job } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
 import { generateAll } from '../../lib/ai';
+import { safeHttpUrl } from '../../lib/url';
 import { COLUMNS } from '../../lib/columns';
 import { GeneratedDocs } from './GeneratedDocs';
 
@@ -17,6 +18,7 @@ export function JobDetailDrawer({ job, onClose }: Props) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [showRaw, setShowRaw] = useState(false);
+  const safeUrl = safeHttpUrl(job.url);
 
   async function handleGenerate() {
     setError('');
@@ -63,14 +65,14 @@ export function JobDetailDrawer({ job, onClose }: Props) {
               {job.company}
               {job.location ? ` · ${job.location}` : ''}
             </p>
-            {job.url && (
+            {safeUrl && (
               <a
-                href={job.url}
+                href={safeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-primary hover:text-primary-hover transition-colors mt-1 block truncate"
               >
-                {job.url}
+                {safeUrl}
               </a>
             )}
           </div>

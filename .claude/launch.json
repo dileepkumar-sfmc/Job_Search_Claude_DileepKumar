@@ -5,7 +5,8 @@
       "name": "Vite Dev Server",
       "runtimeExecutable": "C:\\Users\\dilee\\Documents\\Job_Search_Copilot\\dev.cmd",
       "runtimeArgs": [],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

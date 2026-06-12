@@ -14,6 +14,9 @@ server/.env.local
 # Local Claude settings (machine-specific)
 .claude/settings.local.json
 
+# Hook bookkeeping (records the last change-set the CLAUDE.md sync hook reminded about)
+.claude/.claudemd-review-hash
+
 # Logs
 *.log
 npm-debug.log*

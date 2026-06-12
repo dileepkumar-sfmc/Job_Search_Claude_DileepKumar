@@ -1,5 +1,20 @@
 export async function fetchJobFromUrl(url: string): Promise<string> {
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  // The URL is user-supplied and gets fetched by a third-party proxy, so reject
+  // anything that isn't a plain absolute http(s) link before sending it on
+  // (no javascript:/data:/file: schemes, no embedded credentials).
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    throw new Error('Enter a full URL that starts with https://');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Only http(s) links can be fetched — paste the text instead.');
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error('URLs with embedded credentials are not allowed.');
+  }
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(parsed.href)}`;
   const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`Proxy returned ${res.status}`);
   const data = await res.json() as { contents?: string; status?: { http_code: number } };
