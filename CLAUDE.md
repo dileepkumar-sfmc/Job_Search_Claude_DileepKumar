@@ -20,7 +20,7 @@ No test runner is configured yet.
 
 ## Architecture
 
-Pure client-side React + TypeScript app. No backend — all AI calls go directly from the browser to the AI provider's API using a key loaded from `server/.env` at build time.
+Client-side React + TypeScript app with an optional **Supabase** backend (magic-link auth + synced jobs/settings) behind a single flag, **`AUTH_ENABLED` in `src/lib/supabase.ts`**. AI calls always go directly from the browser to the provider's API using the user's own key (never sent to Supabase). **Currently `AUTH_ENABLED = false`**: the app skips sign-in and persists jobs/settings to `localStorage` (per-browser). Flip it to `true` to gate behind sign-in + cloud sync — local jobs migrate up on first login. See **Backend (Supabase)** below.
 
 ### Environment / API keys
 - Keys live in `server/.env` (gitignored). Vite reads this directory via `envDir: './server'` in `vite.config.ts`.
@@ -31,9 +31,17 @@ Pure client-side React + TypeScript app. No backend — all AI calls go directly
 - The job-URL fetch (`src/lib/jobScraper.ts`) validates the URL is plain http(s) (no `javascript:`/`data:`/credentials) before routing it through the third-party CORS proxy. Untrusted URLs from AI search results / job cards are run through `safeHttpUrl()` (`src/lib/url.ts`) before being rendered as an `href` — anything else renders as plain text.
 - **Restart the dev server** after editing `server/.env` — Vite only reads env vars on startup.
 
-### State (Zustand + persist middleware)
-- `src/store/jobs.ts` — all job cards; persisted to `localStorage` key `jsc-jobs`
-- `src/store/settings.ts` — API key, provider, OpenRouter model, resume text; persisted to `jsc-settings`
+### Backend (Supabase)
+- **`AUTH_ENABLED` flag** (`src/lib/supabase.ts`) gates everything here. When `false` (current), the stores branch to localStorage-only and `App.tsx` skips all auth/config gates; the Supabase code stays dormant. The store methods and `App` effects all check `AUTH_ENABLED` before touching Supabase.
+- Client + config in `src/lib/supabase.ts` (env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — **publishable, safe to ship**; RLS protects data). `supabaseReady` is false on a clone with no env vars → App shows a config notice (only when `AUTH_ENABLED`).
+- **Auth** (`src/store/auth.ts`) — passwordless **magic link** (`signInWithOtp`). The app is gated: `App.tsx` shows `SignIn` until `status === 'signed-in'`. Access is **locked to a single email** (`ALLOWED_EMAIL`) both client-side (UX) and in **RLS** (the real enforcement). On sign-in, `App` calls `jobs.load()` + `settings.load()`; on sign-out it calls `jobs.reset()`.
+- **Tables** (migration `init_jobs_and_settings_with_rls`): `jobs` (the pipeline column is stored as **`status`** because `column` is reserved; `generated` is `jsonb`) and `user_settings`. Both have RLS = own rows AND `auth.jwt()->>'email' = ALLOWED_EMAIL`. To change the allowed user, update **both** `ALLOWED_EMAIL` and the RLS policies.
+- **Mapping contract** (`src/store/jobs.ts`): `rowToJob`/`jobToRow`/`jobToRowPatch` translate `Job` ↔ row (`column`↔`status`, `rawText`↔`raw_text`, `createdAt`↔`created_at`). Keep these in sync with the `Job` type.
+- **First sign-in migration**: `migrateLocalJobs()` pushes any pre-backend `localStorage['jsc-jobs']` up once (guarded by a `jsc-migrated` flag).
+
+### State (Zustand)
+- `src/store/jobs.ts` — Supabase-backed. Methods (`addJob`, `updateJob`, `moveJob`, `setGenerated`, `deleteJob`, `importJobs`) keep their original signatures but are now async with **optimistic updates + revert-on-error** (errors surface via `src/store/ui.ts` → the `SyncNotice` banner in `App.tsx`). No more localStorage persist for jobs.
+- `src/store/settings.ts` — **API key stays local** (localStorage, never synced). `resumeText`, `resumeFileName`, `provider`, `openRouterModel`, `searchModel` write-through to `user_settings` and are reloaded via `load()` on sign-in.
 
 Both stores are the single source of truth. Components read from these stores and never manage their own copies of jobs or settings.
 

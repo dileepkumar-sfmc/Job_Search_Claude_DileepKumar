@@ -1,21 +1,64 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Job, ColumnId } from './types';
 import { KanbanBoard } from './components/Board/KanbanBoard';
 import { AddJobModal } from './components/AddJob/AddJobModal';
 import { JobSearchModal } from './components/JobSearch/JobSearchModal';
 import { JobDetailDrawer } from './components/JobDetail/JobDetailDrawer';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
+import { SignIn } from './components/Auth/SignIn';
 import { useJobsStore } from './store/jobs';
+import { useSettingsStore } from './store/settings';
+import { useAuthStore } from './store/auth';
+import { supabaseReady, AUTH_ENABLED } from './lib/supabase';
+import { useUiStore } from './store/ui';
 
 export default function App() {
   const { jobs } = useJobsStore();
+  const authStatus = useAuthStore((s) => s.status);
   const [addColumn, setAddColumn] = useState<ColumnId | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
+  // Start watching the auth session once (only when auth is enabled).
+  useEffect(() => { if (AUTH_ENABLED) useAuthStore.getState().init(); }, []);
+
+  // Load (or clear) the user's data as the session changes.
+  useEffect(() => {
+    if (!AUTH_ENABLED) return; // auth off → jobs come from localStorage (persist)
+    if (authStatus === 'signed-in') {
+      void useJobsStore.getState().load();
+      void useSettingsStore.getState().load();
+    } else if (authStatus === 'signed-out' || authStatus === 'unauthorized') {
+      useJobsStore.getState().reset();
+    }
+  }, [authStatus]);
+
   // Keep selected job in sync with store updates
   const liveJob = selectedJob ? (jobs.find((j) => j.id === selectedJob.id) ?? selectedJob) : null;
+
+  if (AUTH_ENABLED && !supabaseReady) {
+    return (
+      <div className="flex items-center justify-center h-screen px-6 text-center">
+        <p className="max-w-md text-sm text-ink-subtle">
+          Backend not configured. Set <span className="font-mono text-ink">VITE_SUPABASE_URL</span> and{' '}
+          <span className="font-mono text-ink">VITE_SUPABASE_ANON_KEY</span> to enable sign-in and sync.
+        </p>
+      </div>
+    );
+  }
+
+  if (AUTH_ENABLED && authStatus === 'loading') {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <span className="animate-spin-slow text-2xl text-primary-hover">⟳</span>
+      </div>
+    );
+  }
+
+  if (AUTH_ENABLED && authStatus !== 'signed-in') {
+    return <SignIn />;
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -97,6 +140,23 @@ export default function App() {
         <JobDetailDrawer job={liveJob} onClose={() => setSelectedJob(null)} />
       )}
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+
+      <SyncNotice />
+    </div>
+  );
+}
+
+/** Small transient banner shown when a background sync write fails. */
+function SyncNotice() {
+  const error = useUiStore((s) => s.error);
+  const clear = useUiStore((s) => s.clear);
+  if (!error) return null;
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] animate-fade-up">
+      <div className="flex items-center gap-3 bg-surface-3 border border-hairline-strong rounded-lg px-4 py-2.5 edge-top">
+        <span className="text-[13px] text-ink">{error}</span>
+        <button onClick={clear} className="text-ink-subtle hover:text-ink text-lg leading-none">×</button>
+      </div>
     </div>
   );
 }

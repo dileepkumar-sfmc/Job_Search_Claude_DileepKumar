@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import type { AIProvider } from '../../types';
 import { useSettingsStore } from '../../store/settings';
 import { useJobsStore } from '../../store/jobs';
+import { useAuthStore } from '../../store/auth';
+import { AUTH_ENABLED } from '../../lib/supabase';
 import { parseResume } from '../../lib/resumeParser';
 
 interface Props {
@@ -12,6 +14,8 @@ export function SettingsPanel({ onClose }: Props) {
   const { apiKey, provider, openRouterModel, searchModel, resumeText, resumeFileName, setApiKey, setProvider, setOpenRouterModel, setSearchModel, setResume } =
     useSettingsStore();
   const { jobs, importJobs } = useJobsStore();
+  const userEmail = useAuthStore((s) => s.user?.email ?? '');
+  const signOut = useAuthStore((s) => s.signOut);
 
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(openRouterModel);
@@ -92,6 +96,27 @@ export function SettingsPanel({ onClose }: Props) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* Account */}
+            {AUTH_ENABLED && (
+              <section className="space-y-3">
+                <h3 className="text-xs font-medium text-ink-subtle uppercase tracking-eyebrow">
+                  Account
+                </h3>
+                <div className="flex items-center justify-between gap-3 bg-surface-2 border border-hairline rounded-md px-3 py-2">
+                  <span className="text-[13px] text-ink truncate">{userEmail || 'Signed in'}</span>
+                  <button
+                    onClick={() => { void signOut(); onClose(); }}
+                    className="shrink-0 text-[12px] text-ink-subtle hover:text-ink transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
+                <p className="text-xs text-ink-tertiary">
+                  Your jobs, resume, and preferences sync to your account. Your API key stays only in this browser.
+                </p>
+              </section>
+            )}
+
             {/* AI Provider */}
             <section className="space-y-3">
               <h3 className="text-xs font-medium text-ink-subtle uppercase tracking-eyebrow">
