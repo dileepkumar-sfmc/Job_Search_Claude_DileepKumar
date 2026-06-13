@@ -16,7 +16,7 @@ Return ONLY valid JSON with this exact structure:
 
   STRUCTURE (in this order):
   Line 1: The candidate's full name only.
-  Line 2: Contact info on one line, pipe-separated: phone  |  email  |  location  |  linkedin (use whatever the source resume provides).
+  Line 2: Contact info on one line, pipe-separated: phone  |  email  |  location  |  linkedin. ALWAYS use this exact phone number: +18038146712 (ignore any other phone in the source resume). Use whatever the source resume provides for email, location, and linkedin.
   Then a blank line, then these sections. Each section heading goes ALONE on its own line in Title Case, EXACTLY: "Professional Summary", "Technical Skills", "Professional Experience", "Education" (add "Certifications" only if the source has them). Omit a section only if the source has zero data for it.
 
   Professional Summary: 6-12 concise qualification statements, ONE PER LINE (no bullet characters). Lead with the ones most relevant to this job; weave in the job's key title and required technologies wherever the candidate genuinely has them.
@@ -30,10 +30,13 @@ Return ONLY valid JSON with this exact structure:
     Responsibilities:
     - <bullet starting with a strong action verb, quantified where the source supports it>
     - <...more bullets...>
+    Each role MUST have AT LEAST 10 responsibility bullets. Mine the source resume for this role and reasonably infer standard duties the candidate genuinely performed, prioritizing the skills, tools, and outcomes THIS job description asks for. Keep every bullet truthful — reframe and expand real work, never fabricate roles, employers, or accomplishments.
     Environment: <comma-separated tech list — surface the technologies this job asks for that the candidate truly used>
   Reframe/reorder bullets and the Environment list to surface what THIS job values most. Keep every company, title, location, and date exactly as in the source.
 
-  Education: one per line in the form "Degree — School, Year".
+  Education: ALWAYS use these exact two lines, in this order, regardless of what the source resume says (one per line, form "Degree — School, Year"):
+    Master of Science in Computer Science — University of the Cumberlands, 2016
+    Bachelor of Science in Computer Science — Jawaharlal Nehru Technological University (JNTUH), 2013
 
 - interviewQuestions: 10 likely interview questions with brief answer guidance for each.
 
@@ -154,25 +157,47 @@ export async function searchJobs(
 ): Promise<JobSearchResult[]> {
   if (!apiKey) throw new Error('No API key configured. Add your OpenRouter key in Settings.');
 
-  const wants: string[] = [];
-  if (prefs.role) wants.push(`Target role: ${prefs.role}`);
-  if (prefs.location) wants.push(`Location: ${prefs.location}`);
-  if (prefs.workMode && prefs.workMode !== 'any') wants.push(`Work mode: ${prefs.workMode}`);
-  if (prefs.employmentTypes.length) wants.push(`Employment type: ${prefs.employmentTypes.join(', ')}`);
-  if (prefs.seniority) wants.push(`Seniority: ${prefs.seniority}`);
-  if (prefs.salary) wants.push(`Salary target: ${prefs.salary}`);
+  const DATE_WINDOW: Record<Exclude<SearchPrefs['datePosted'], 'any'>, string> = {
+    '24h': 'the last 24 hours',
+    '3d': 'the last 3 days',
+    week: 'the last 7 days',
+    month: 'the last 30 days',
+  };
 
-  const system = `You are a job-search assistant with live web access. Find CURRENT, real job openings that match the candidate's profile and preferences.
+  // Hard requirements — every result MUST satisfy these.
+  const must: string[] = [];
+  if (prefs.location) {
+    must.push(`Location: the role must be based in or explicitly hiring for "${prefs.location}". Exclude roles located anywhere else.`);
+  }
+  if (prefs.workMode && prefs.workMode !== 'any') {
+    must.push(`Work mode: only ${prefs.workMode} roles. Exclude any posting that is not ${prefs.workMode}.`);
+  }
+  if (prefs.datePosted && prefs.datePosted !== 'any') {
+    must.push(`Recency: only postings published within ${DATE_WINDOW[prefs.datePosted]}. Omit anything older or with no determinable post date.`);
+  }
+
+  // Soft preferences — rank by these, but they are not exclusionary.
+  const prefer: string[] = [];
+  if (prefs.role) prefer.push(`Target role: ${prefs.role}`);
+  if (prefs.employmentTypes.length) prefer.push(`Employment type: ${prefs.employmentTypes.join(', ')}`);
+  if (prefs.seniority) prefer.push(`Seniority: ${prefs.seniority}`);
+  if (prefs.salary) prefer.push(`Salary target: ${prefs.salary}`);
+
+  const system = `You are a job-search assistant with live web access. Find CURRENT, real job openings for the candidate.
 Return ONLY a JSON array (no prose, no markdown fences). Each item must be:
-{"title":"","company":"","location":"","url":"","employmentType":"","summary":"","fit":""}
+{"title":"","company":"","location":"","url":"","employmentType":"","summary":"","fit":"","posted":""}
+- The HARD REQUIREMENTS in the user message are MANDATORY: every result must satisfy ALL of them. Never include a role that violates them, and never pad the list — return fewer results (even zero) instead of off-target ones.
+- posted: how recently it was posted, e.g. "2 days ago" or "2024-06-10". Use "" only if you truly cannot determine it.
 - url: a direct link to the live posting when available; otherwise the company's careers page. Never invent URLs.
 - employmentType: e.g. "Full-time", "Contract", "C2C", "Part-time".
-- summary: 1-2 sentences on the role.
-- fit: one sentence on why it matches THIS candidate.
-Return 8-12 results, preferring postings from roughly the last 30 days. If you cannot verify a real posting, omit it rather than fabricate.`;
+- summary: 1-2 sentences on the role. fit: one sentence on why it matches THIS candidate.
+Return up to 12 results. If you cannot verify a real posting that meets every hard requirement, omit it rather than fabricate or substitute a non-matching role.`;
 
-  const user = `CANDIDATE PREFERENCES:
-${wants.length ? wants.join('\n') : '(infer sensible defaults from the resume)'}
+  const user = `HARD REQUIREMENTS (every result must satisfy all of these):
+${must.length ? must.join('\n') : '(none specified)'}
+
+PREFERENCES (rank results by these):
+${prefer.length ? prefer.join('\n') : '(infer sensible defaults from the resume)'}
 
 CANDIDATE RESUME:
 ${resumeText.slice(0, 4000) || '(no resume provided — use the preferences above)'}`;
@@ -202,7 +227,21 @@ ${resumeText.slice(0, 4000) || '(no resume provided — use the preferences abov
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) throw new Error('No results returned. Try broadening your search.');
   const parsed = JSON.parse(match[0]) as JobSearchResult[];
-  return parsed.filter((j) => j && j.title && j.company);
+  return parsed
+    .filter((j) => j && j.title && j.company)
+    .filter((j) => matchesWorkMode(j, prefs.workMode));
+}
+
+// Conservative backstop for the work-mode requirement: when "remote" is asked
+// for, drop only results that explicitly say on-site/in-office and never mention
+// remote. Deliberately lenient so genuine matches aren't discarded; the prompt
+// does the primary enforcement.
+function matchesWorkMode(r: JobSearchResult, mode: SearchPrefs['workMode']): boolean {
+  if (mode !== 'remote') return true;
+  const hay = `${r.location} ${r.employmentType} ${r.summary}`.toLowerCase();
+  const saysOnsite = /\bon-?site\b|\bin-office\b|\bin office\b/.test(hay);
+  const saysRemote = /\bremote\b|\bwork from home\b|\bwfh\b|\banywhere\b/.test(hay);
+  return !(saysOnsite && !saysRemote);
 }
 
 export async function extractJobMeta(

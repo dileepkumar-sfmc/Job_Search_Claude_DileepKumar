@@ -11,13 +11,14 @@ interface Props {
 }
 
 export function SettingsPanel({ onClose }: Props) {
-  const { apiKey, provider, openRouterModel, searchModel, resumeText, resumeFileName, setApiKey, setProvider, setOpenRouterModel, setSearchModel, setResume } =
+  const { apiKey, jobsApiKey, provider, openRouterModel, searchModel, resumeText, resumeFileName, setApiKey, setJobsApiKey, setProvider, setOpenRouterModel, setSearchModel, setResume } =
     useSettingsStore();
   const { jobs, importJobs } = useJobsStore();
   const userEmail = useAuthStore((s) => s.user?.email ?? '');
   const signOut = useAuthStore((s) => s.signOut);
 
   const [localKey, setLocalKey] = useState(apiKey);
+  const [localJobsKey, setLocalJobsKey] = useState(jobsApiKey);
   const [localModel, setLocalModel] = useState(openRouterModel);
   const [localSearchModel, setLocalSearchModel] = useState(searchModel);
   const [parsing, setParsing] = useState(false);
@@ -27,6 +28,7 @@ export function SettingsPanel({ onClose }: Props) {
 
   function handleSave() {
     setApiKey(localKey.trim());
+    setJobsApiKey(localJobsKey.trim());
     setOpenRouterModel(localModel.trim() || 'anthropic/claude-sonnet-4-6');
     setSearchModel(localSearchModel.trim() || 'perplexity/sonar-pro');
     onClose();
@@ -195,6 +197,32 @@ export function SettingsPanel({ onClose }: Props) {
                 />
                 <p className="text-xs text-ink-tertiary">
                   Stored only in your browser's localStorage.
+                </p>
+              </div>
+            </section>
+
+            {/* Job search (real listings) */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-medium text-ink-subtle uppercase tracking-eyebrow">
+                Job Search
+              </h3>
+              <div className="space-y-1.5">
+                <label className="text-xs text-ink-subtle block">Jobs API key (JSearch via RapidAPI)</label>
+                <input
+                  type="password"
+                  value={localJobsKey}
+                  onChange={(e) => setLocalJobsKey(e.target.value)}
+                  placeholder="RapidAPI key…"
+                  className="w-full bg-surface-2 border border-hairline rounded-md px-3 py-2 text-sm
+                             text-ink placeholder:text-ink-tertiary outline-none font-mono
+                             focus:border-primary-focus focus:ring-1 focus:ring-primary-focus/50"
+                />
+                <p className="text-xs text-ink-tertiary">
+                  With a key, <span className="text-ink-subtle">Find Jobs</span> returns <span className="text-ink-subtle">real</span> postings with working apply links. Get a free key by subscribing to{' '}
+                  <a href="https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" target="_blank" rel="noreferrer"
+                     className="text-primary hover:text-primary-hover underline">
+                    JSearch on RapidAPI
+                  </a>. Without it, Find Jobs falls back to approximate AI leads.
                 </p>
               </div>
             </section>

@@ -3,7 +3,9 @@ import type { SearchPrefs, JobSearchResult } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
 import { searchJobs } from '../../lib/ai';
+import { searchRealJobs } from '../../lib/jobsApi';
 import { safeHttpUrl } from '../../lib/url';
+import { buildBoardLinks, jobSearchUrl } from '../../lib/boards';
 
 interface Props {
   onClose: () => void;
@@ -11,6 +13,13 @@ interface Props {
 
 const EMPLOYMENT_TYPES = ['Full-time', 'Contract/C2C', 'Part-time', 'Internship'];
 const WORK_MODES: SearchPrefs['workMode'][] = ['any', 'remote', 'onsite', 'hybrid'];
+const DATE_POSTED: { value: SearchPrefs['datePosted']; label: string }[] = [
+  { value: 'any', label: 'Any time' },
+  { value: '24h', label: 'Past 24h' },
+  { value: '3d', label: 'Past 3 days' },
+  { value: 'week', label: 'Past week' },
+  { value: 'month', label: 'Past month' },
+];
 
 const inputCls =
   'w-full bg-surface-2 border border-hairline rounded-md px-3 py-2 text-sm text-ink ' +
@@ -22,7 +31,7 @@ function norm(s: string) {
 
 export function JobSearchModal({ onClose }: Props) {
   const { jobs, addJob } = useJobsStore();
-  const { apiKey, searchModel, resumeText } = useSettingsStore();
+  const { apiKey, jobsApiKey, searchModel, resumeText } = useSettingsStore();
 
   const [prefs, setPrefs] = useState<SearchPrefs>({
     role: '',
@@ -31,13 +40,20 @@ export function JobSearchModal({ onClose }: Props) {
     employmentTypes: [],
     seniority: '',
     salary: '',
+    datePosted: 'any',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<JobSearchResult[] | null>(null);
+  const [source, setSource] = useState<'api' | 'ai'>('ai');
   const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
 
+  // Prefer the real jobs API (working links) whenever a key is configured;
+  // otherwise fall back to the AI search (approximate leads).
+  const useRealApi = Boolean(jobsApiKey);
+
   const existingKeys = new Set(jobs.map((j) => `${norm(j.title)}@${norm(j.company)}`));
+  const boardLinks = buildBoardLinks(prefs);
 
   function toggleType(t: string) {
     setPrefs((p) => ({
@@ -53,8 +69,13 @@ export function JobSearchModal({ onClose }: Props) {
     setLoading(true);
     setResults(null);
     try {
-      const found = await searchJobs(apiKey, searchModel, prefs, resumeText);
-      setResults(found);
+      if (useRealApi) {
+        setSource('api');
+        setResults(await searchRealJobs(jobsApiKey, prefs));
+      } else {
+        setSource('ai');
+        setResults(await searchJobs(apiKey, searchModel, prefs, resumeText));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
     } finally {
@@ -94,7 +115,9 @@ export function JobSearchModal({ onClose }: Props) {
               Find Jobs
             </h2>
             <p className="text-[11px] text-ink-subtle mt-0.5">
-              Live search via {searchModel} · matched to your resume
+              {useRealApi
+                ? 'Real postings via JSearch · live apply links'
+                : `AI leads via ${searchModel} · add a jobs API key in Settings for real postings`}
             </p>
           </div>
           <button
@@ -173,6 +196,29 @@ export function JobSearchModal({ onClose }: Props) {
             </div>
           </div>
 
+          {/* Posted within (single-select) */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium text-ink-subtle block">Posted within</label>
+            <div className="flex flex-wrap gap-1.5">
+              {DATE_POSTED.map(({ value, label }) => {
+                const on = prefs.datePosted === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setPrefs((p) => ({ ...p, datePosted: value }))}
+                    className={`px-2.5 py-1 rounded-full text-[12px] font-medium border transition-all
+                      ${on
+                        ? 'bg-primary text-white border-transparent edge-top'
+                        : 'bg-surface-2 text-ink-subtle border-hairline hover:text-ink'
+                      }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[11px] font-medium text-ink-subtle block">
               Salary target <span className="text-ink-tertiary font-normal">(optional)</span>
@@ -183,6 +229,30 @@ export function JobSearchModal({ onClose }: Props) {
               onChange={(e) => setPrefs({ ...prefs, salary: e.target.value })}
               placeholder="e.g. $140k+ or $80/hr"
             />
+          </div>
+
+          {/* Open the real boards, pre-filtered with the same preferences */}
+          <div className="space-y-1.5 border-t border-hairline pt-3">
+            <label className="text-[11px] font-medium text-ink-subtle block">
+              Or open a live board with these filters
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {boardLinks.map((b) => (
+                <a
+                  key={b.name}
+                  href={b.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium
+                             bg-surface-2 text-ink-subtle border border-hairline hover:text-ink hover:border-primary transition-all"
+                >
+                  {b.name} ↗
+                </a>
+              ))}
+            </div>
+            <p className="text-[11px] text-ink-tertiary">
+              Opens the real job board filtered to your role, location, work mode, and date — paste a listing back via Add Job to tailor it.
+            </p>
           </div>
 
           {!resumeText && (
@@ -235,6 +305,9 @@ export function JobSearchModal({ onClose }: Props) {
                           {r.location ? ` · ${r.location}` : ''}
                           {r.employmentType ? ` · ${r.employmentType}` : ''}
                         </p>
+                        {r.posted && (
+                          <p className="text-[11px] text-ink-tertiary mt-0.5">Posted {r.posted}</p>
+                        )}
                       </div>
                       <button
                         onClick={() => handleAdd(r)}
@@ -248,17 +321,57 @@ export function JobSearchModal({ onClose }: Props) {
                         {added ? '✓ Added' : '+ Wishlist'}
                       </button>
                     </div>
-                    {r.fit && <p className="text-[12px] text-ink-subtle mt-2 leading-relaxed">{r.fit}</p>}
-                    {safeUrl && (
-                      <a
-                        href={safeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover mt-2"
-                      >
-                        View posting ↗ <span className="text-ink-tertiary">(verify link)</span>
-                      </a>
+                    {(r.summary || r.fit) && (
+                      <p className="text-[12px] text-ink-subtle mt-2 leading-relaxed">{r.fit || r.summary}</p>
                     )}
+                    <div className="flex items-center gap-3 mt-2">
+                      {source === 'api' ? (
+                        // Real API: the URL is a genuine apply link — lead with it.
+                        <>
+                          {safeUrl && (
+                            <a
+                              href={safeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover"
+                            >
+                              Apply ↗
+                            </a>
+                          )}
+                          <a
+                            href={jobSearchUrl(r.title, r.company, r.location)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-ink-tertiary hover:text-ink-subtle"
+                          >
+                            Search more ↗
+                          </a>
+                        </>
+                      ) : (
+                        // AI leads: direct URL may be stale/fabricated — lead with a
+                        // guaranteed-working search for the role instead.
+                        <>
+                          <a
+                            href={jobSearchUrl(r.title, r.company, r.location)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover"
+                          >
+                            Find this posting ↗
+                          </a>
+                          {safeUrl && (
+                            <a
+                              href={safeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-ink-tertiary hover:text-ink-subtle"
+                            >
+                              direct link (unverified)
+                            </a>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -269,7 +382,9 @@ export function JobSearchModal({ onClose }: Props) {
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-hairline shrink-0">
           <span className="text-[11px] text-ink-tertiary">
-            AI-surfaced leads — always verify the posting before applying.
+            {useRealApi
+              ? 'Real postings from JSearch — apply links open the live listing.'
+              : 'AI-surfaced leads — always verify the posting before applying.'}
           </span>
           <button
             onClick={handleSearch}

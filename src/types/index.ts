@@ -27,6 +27,7 @@ export interface SearchPrefs {
   employmentTypes: string[];
   seniority: string;
   salary: string;
+  datePosted: 'any' | '24h' | '3d' | 'week' | 'month';
 }
 
 export interface JobSearchResult {
@@ -37,6 +38,7 @@ export interface JobSearchResult {
   employmentType: string;
   summary: string;
   fit: string;
+  posted: string; // how recently posted, e.g. "2 days ago" — best-effort, may be ''
 }
 
 export type AIProvider = 'openrouter' | 'claude' | 'openai';

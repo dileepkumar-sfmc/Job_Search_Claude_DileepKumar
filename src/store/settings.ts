@@ -16,18 +16,25 @@ const ENV_KEY = import.meta.env.DEV
     (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ||
     ''
   : '';
+// Same dev-only gating as the AI key — a real jobs-API key must never ship in a
+// production bundle; prod users enter their own via Settings.
+const ENV_JOBS_KEY = import.meta.env.DEV
+  ? (import.meta.env.VITE_JOBS_API_KEY as string | undefined) || ''
+  : '';
 const ENV_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as AIProvider | undefined) || 'openrouter';
 const ENV_MODEL = (import.meta.env.VITE_OPENROUTER_MODEL as string | undefined) || 'anthropic/claude-sonnet-4-6';
 const ENV_SEARCH_MODEL = (import.meta.env.VITE_OPENROUTER_SEARCH_MODEL as string | undefined) || 'perplexity/sonar-pro';
 
 interface SettingsStore {
   apiKey: string; // local-only — never synced to Supabase
+  jobsApiKey: string; // local-only — RapidAPI (JSearch) key for real job results
   provider: AIProvider;
   openRouterModel: string;
   searchModel: string;
   resumeText: string;
   resumeFileName: string;
   setApiKey: (key: string) => void;
+  setJobsApiKey: (key: string) => void;
   setProvider: (p: AIProvider) => void;
   setOpenRouterModel: (model: string) => void;
   setSearchModel: (model: string) => void;
@@ -52,6 +59,7 @@ export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set, get) => ({
       apiKey: ENV_KEY,
+      jobsApiKey: ENV_JOBS_KEY,
       provider: ENV_PROVIDER,
       openRouterModel: ENV_MODEL,
       searchModel: ENV_SEARCH_MODEL,
@@ -59,6 +67,7 @@ export const useSettingsStore = create<SettingsStore>()(
       resumeFileName: '',
 
       setApiKey: (apiKey) => set({ apiKey }), // local only
+      setJobsApiKey: (jobsApiKey) => set({ jobsApiKey }), // local only
       setProvider: (provider) => {
         set({ provider });
         void pushSettings({ provider });
@@ -112,6 +121,7 @@ export const useSettingsStore = create<SettingsStore>()(
         ...current,
         ...(persisted as Partial<SettingsStore>),
         apiKey: (persisted as Partial<SettingsStore>)?.apiKey || ENV_KEY,
+        jobsApiKey: (persisted as Partial<SettingsStore>)?.jobsApiKey || ENV_JOBS_KEY,
         provider: (persisted as Partial<SettingsStore>)?.provider || ENV_PROVIDER,
         openRouterModel: (persisted as Partial<SettingsStore>)?.openRouterModel || ENV_MODEL,
         searchModel: (persisted as Partial<SettingsStore>)?.searchModel || ENV_SEARCH_MODEL,

@@ -50,6 +50,9 @@ async function saveBlob(blob: Blob, filename: string, mime: string, ext: string)
 }
 
 const FONT = 'Calibri';
+// Subtle navy accent for the name + section headings. Text-only coloring keeps
+// the resume ATS-safe (parsers read the characters; the color is ignored).
+const ACCENT = '1F3864';
 const SECTION_HEADINGS = new Set([
   'professional summary',
   'summary',
@@ -66,8 +69,8 @@ const SECTION_HEADINGS = new Set([
 function sectionHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 220, after: 90 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '999999', space: 2 } },
-    children: [new TextRun({ text, bold: true, size: 24, font: FONT, color: '1A1A1A' })],
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: ACCENT, space: 2 } },
+    children: [new TextRun({ text, bold: true, size: 24, font: FONT, color: ACCENT })],
   });
 }
 
@@ -128,7 +131,7 @@ function buildResumeDocx(text: string, title: string): Promise<Blob> {
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 40 },
-          children: [new TextRun({ text: line, bold: true, size: 34, font: FONT })],
+          children: [new TextRun({ text: line, bold: true, size: 34, font: FONT, color: ACCENT })],
         })
       );
       return;
