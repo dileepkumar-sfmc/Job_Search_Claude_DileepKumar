@@ -13,7 +13,7 @@ const RESUME_SPEC = `The candidate's resume rewritten to maximize match with THI
 
   STRUCTURE (in this order):
   Line 1: The candidate's full name only.
-  Line 2: Contact info on one line, pipe-separated: phone  |  email  |  location  |  linkedin. ALWAYS use this exact phone number: +18038146712 (ignore any other phone in the source resume). Use whatever the source resume provides for email, location, and linkedin.
+  Line 2: Contact info on one line, pipe-separated: phone  |  email  |  location  |  linkedin. Take ALL of these — phone, email, location, and linkedin — EXACTLY as they appear in the source resume. Never substitute or invent a number or link. If the resume lists more than one profile link (e.g. LinkedIn plus a Trailblazer/portfolio URL), include them too, pipe-separated.
   Then a blank line, then these sections. Each section heading goes ALONE on its own line in Title Case, EXACTLY: "Professional Summary", "Technical Skills", "Professional Experience", "Education" (add "Certifications" only if the source has them). Omit a section only if the source has zero data for it.
 
   Professional Summary: 6-12 concise qualification statements, ONE PER LINE (no bullet characters). Lead with the ones most relevant to this job; weave in the job's key title and required technologies wherever the candidate genuinely has them.
@@ -31,43 +31,36 @@ const RESUME_SPEC = `The candidate's resume rewritten to maximize match with THI
     Environment: <comma-separated tech list — surface the technologies this job asks for that the candidate truly used>
   Reframe/reorder bullets and the Environment list to surface what THIS job values most. Keep every company, title, location, and date exactly as in the source.
 
-  Education: ALWAYS use these exact two lines, in this order, regardless of what the source resume says (one per line, form "Degree — School, Year"):
-    Master of Science in Computer Science — University of the Cumberlands, 2016
-    Bachelor of Science in Computer Science — Jawaharlal Nehru Technological University (JNTUH), 2013`;
+  Education: take the degrees, schools, and years EXACTLY from the source resume (one per line, form "Degree — School, Year"), reverse-chronological. Never invent or substitute a school, degree, or year the resume does not list.
+
+  Certifications: if the source resume lists certifications, include a "Certifications" section and list each certification on its own line, exactly as named in the resume (most relevant to THIS job first). Omit the section entirely if the resume has none.`;
 
 const INTERVIEW_SPEC = '10 likely interview questions with brief answer guidance for each.';
 
 const BRIEF_SPEC = 'A 1-page brief on the company — mission, culture, recent highlights from the job description, and why this role matters.';
 
-const EMAIL_SPEC = `A professional email REPLYING to a recruiter who shared THIS job. Plain text only — NO markdown, asterisks, or bold symbols. Follow this EXACT structure so it is ready to send:
+const EMAIL_SPEC = `A warm, natural, HUMAN-sounding email to the recruiter or hiring contact for THIS job. It must read like a real person wrote it in two minutes - NOT like AI. Do NOT use generic filler like "I am interested in this position", "I am writing to express my interest", or "I am excited about this opportunity". Be specific and conversational, reacting to the ACTUAL role and tech. It MUST paste cleanly into Gmail: output PLAIN TEXT ONLY - no markdown, asterisks, bold, numbered or bulleted lists, or "Label: value" lines, and no em/en dashes (use a plain hyphen "-" only). Keep it short, simple, and straight to the point, clearly tailored to THIS job description. Structure:
 
-  Subject: a concise subject with the role title (and company if known), e.g. "Subject: Java Developer — <Candidate Name> (H1B, C2C)".
+  Subject: "Subject: <role title> - <Candidate Name>". Add a "Re: " prefix ONLY if the posting is clearly a message the recruiter personally sent the candidate (a genuine reply).
 
   Greeting: "Hi <recruiter first name if the posting names one, otherwise 'there'>,".
 
-  Opening line: "Thank you for reaching out! Please find my details below along with my updated resume attached."
+  Opening: 1-2 sentences, and pick the framing HONESTLY based on the posting. If the posting reads like a recruiter personally reached out to the candidate (it is a recruiter's message, says "I have an opening", or asks the candidate to share their resume/details), open by thanking them for reaching out. If it is just a job description the candidate found on their own, do NOT pretend they contacted you - instead open by noting you came across the <role title> opening at <company> and that it caught your eye as a strong match. Either way, name the actual role and a key technology from the JD so it feels genuine, not templated. NEVER thank them for reaching out unless the posting clearly shows they did.
 
-  Then a blank line, then a numbered list of details, each on its own line:
-  1. Current Location: <city, state from the resume>
-  2. Work Authorization: H1B – No sponsorship required
-  3. Expected Rate: Open to market rate on C2C
-  4. Reason for Change: Looking for new contract opportunities aligned with my <candidate's primary domain / skill area> expertise.
-  5. Best Fit: <2-4 sentences — total years of experience plus the specific skills, technologies, and domains THIS job emphasizes that the candidate genuinely has, drawn from the resume>
+  Body: ONE natural paragraph (2-4 sentences) connecting the candidate's real, resume-backed experience to the specific skills and tools THIS job emphasizes. Mention total years of experience and 2-3 of the most relevant technologies by name. Truthful only - never claim a skill the resume does not show.
 
-  Then a blank line, then the line "Skill-wise details as requested:" followed by a numbered list of the 4-6 KEY skills/requirements named in the job description, each formatted "<Skill>: <1-2 sentence truthful detail of the candidate's hands-on experience with it, from the resume>".
+  Logistics: ONE short conversational sentence that works the key details in naturally (NOT as a labeled list): that the candidate is based in <city, state from the resume>, is on H1B with no sponsorship needed, and is open to C2C at market rate.
 
-  Then a blank line, then: "Best time to connect: Monday–Friday, flexible after 10 AM EST. Best number: +18038146712."
-
-  Then: "Looking forward to speaking with you!"
+  Closing: a friendly line offering to talk, with availability (weekdays, flexible after 10 AM EST).
 
   Then a blank line, then the sign-off, each on its own line:
   Thanks,
   <candidate full name>
-  +18038146712
+  <candidate's mobile number exactly as it appears in the resume>
   <email from resume>
   <linkedin from resume>
 
-  Truthful — use only experience, skills, and domains genuinely present in the resume; tailor Best Fit and the skill-wise list to THIS job's requirements.`;
+  Do NOT include any "Reason for Change" or "Best Fit" section, and do NOT use labeled detail lines or a skill-by-skill list. Keep the whole email under ~150 words before the signature.`;
 
 const DOC_SPEC: Record<DocKind, string> = {
   coverLetter: COVER_SPEC,
