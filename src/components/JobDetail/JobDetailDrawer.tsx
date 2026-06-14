@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Job } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
-import { generateAll } from '../../lib/ai';
+import { generateAll, generateDoc, type DocKind } from '../../lib/ai';
 import { safeHttpUrl } from '../../lib/url';
 import { COLUMNS } from '../../lib/columns';
 import { GeneratedDocs } from './GeneratedDocs';
@@ -16,9 +16,12 @@ export function JobDetailDrawer({ job, onClose }: Props) {
   const { moveJob, setGenerated, deleteJob } = useJobsStore();
   const { apiKey, provider, resumeText, openRouterModel } = useSettingsStore();
   const [generating, setGenerating] = useState(false);
+  const [generatingKind, setGeneratingKind] = useState<DocKind | null>(null);
   const [error, setError] = useState('');
   const [showRaw, setShowRaw] = useState(false);
   const safeUrl = safeHttpUrl(job.url);
+  // Recruiter email (if the posting lists one) → pre-fills the "Open in Gmail" To field.
+  const recruiterEmail = job.rawText.match(/[\w.+-]+@[\w-]+\.[\w.-]+\.\w+|[\w.+-]+@[\w-]+\.\w+/)?.[0];
 
   async function handleGenerate() {
     setError('');
@@ -30,6 +33,19 @@ export function JobDetailDrawer({ job, onClose }: Props) {
       setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleGenerateOne(kind: DocKind) {
+    setError('');
+    setGeneratingKind(kind);
+    try {
+      const text = await generateDoc(provider, apiKey, kind, job.rawText, resumeText, openRouterModel);
+      await setGenerated(job.id, { [kind]: text });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Generation failed');
+    } finally {
+      setGeneratingKind(null);
     }
   }
 
@@ -120,7 +136,7 @@ export function JobDetailDrawer({ job, onClose }: Props) {
             <h3 className="text-[13px] font-semibold text-ink tracking-[-0.01em]">AI Documents</h3>
             <button
               onClick={handleGenerate}
-              disabled={generating}
+              disabled={generating || generatingKind !== null}
               className="flex items-center gap-2 pl-3 pr-3.5 py-2 bg-primary hover:bg-primary-hover
                          text-white text-[13px] font-medium rounded-md transition-all edge-top-strong
                          active:scale-[0.98] disabled:opacity-50"
@@ -133,7 +149,7 @@ export function JobDetailDrawer({ job, onClose }: Props) {
               ) : (
                 <>
                   <span className="text-primary-hover" style={{ filter: 'brightness(2)' }}>✦</span>
-                  {job.generated ? 'Regenerate' : 'Generate All'}
+                  {job.generated ? 'Regenerate All' : 'Generate All'}
                 </>
               )}
             </button>
@@ -147,30 +163,25 @@ export function JobDetailDrawer({ job, onClose }: Props) {
             </div>
           )}
 
-          {job.generated && !generating && (
-            <GeneratedDocs generated={job.generated} company={job.company} title={job.title} />
-          )}
-
-          {generating && (
+          {generating ? (
             <div className="border border-hairline rounded-xl p-8 flex flex-col items-center gap-3 edge-top bg-surface-1">
               <span className="animate-spin-slow text-2xl text-primary-hover">⟳</span>
-              <p className="text-xs text-ink-subtle">Tailoring your documents…</p>
+              <p className="text-xs text-ink-subtle">Tailoring all four documents…</p>
             </div>
+          ) : (
+            <GeneratedDocs
+              generated={job.generated}
+              company={job.company}
+              title={job.title}
+              recruiterEmail={recruiterEmail}
+              onGenerate={handleGenerateOne}
+              generatingKind={generatingKind}
+            />
           )}
 
-          {!job.generated && !generating && !error && (
-            <div className="border border-dashed border-hairline rounded-xl p-8 text-center bg-surface-1/40">
-              <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center mx-auto mb-3 edge-top">
-                <span className="text-primary-hover text-lg" style={{ filter: 'brightness(1.6)' }}>✦</span>
-              </div>
-              <p className="text-[13px] text-ink-subtle leading-relaxed max-w-sm mx-auto">
-                Generate a tailored <strong className="text-ink font-medium">cover letter</strong>,{' '}
-                <strong className="text-ink font-medium">resume</strong>,{' '}
-                <strong className="text-ink font-medium">interview prep</strong>, and{' '}
-                <strong className="text-ink font-medium">company brief</strong> — all in one click.
-              </p>
-            </div>
-          )}
+          <p className="text-[11px] text-ink-tertiary -mt-1">
+            Use <strong className="text-ink-subtle font-medium">Generate All</strong> for everything at once, or open a tab and generate just the one you need.
+          </p>
 
           {/* Job description */}
           <div>

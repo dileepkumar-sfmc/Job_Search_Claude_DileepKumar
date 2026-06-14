@@ -5,6 +5,7 @@ export interface GeneratedContent {
   tailoredResume: string;
   interviewQuestions: string;
   companyBrief: string;
+  outreachEmail: string;
 }
 
 export interface Job {
@@ -39,6 +40,8 @@ export interface JobSearchResult {
   summary: string;
   fit: string;
   posted: string; // how recently posted, e.g. "2 days ago" — best-effort, may be ''
+  source?: string; // real-API only: where the posting came from, e.g. "LinkedIn" or "greenhouse.io"
+  description?: string; // real-API only: the FULL job description (used as rawText for tailoring)
 }
 
 export type AIProvider = 'openrouter' | 'claude' | 'openai';

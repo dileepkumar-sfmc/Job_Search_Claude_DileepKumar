@@ -1,18 +1,15 @@
 import type { GeneratedContent, AIProvider, SearchPrefs, JobSearchResult } from '../types';
 
-const SYSTEM_PROMPT = `You are a professional career coach, resume writer, and ATS (Applicant Tracking System) optimization expert.
-Given a job description and a candidate's resume, produce four outputs in a single JSON response.
-Return ONLY valid JSON with this exact structure:
-{
-  "coverLetter": "...",
-  "tailoredResume": "...",
-  "interviewQuestions": "...",
-  "companyBrief": "..."
-}
+/** The four documents that can be generated, individually or all at once. */
+export type DocKind = keyof GeneratedContent;
 
-- coverLetter: A professional, tailored cover letter (3-4 paragraphs).
+// Per-document specs, single-sourced so generateAll (JSON) and generateDoc
+// (single plain-text) stay in sync. The resume spec is the prompt half of the
+// prompt↔renderer contract with buildResumeDocx in lib/download.ts — change both
+// together.
+const COVER_SPEC = 'A professional, tailored cover letter (3-4 paragraphs).';
 
-- tailoredResume: The candidate's resume rewritten to maximize match with THIS job while staying 100% truthful. It MUST follow this EXACT structure and conventions so it parses cleanly into an ATS and into a Word document. Output as plain text — NO tables, columns, text boxes, graphics, markdown symbols (no #, *, **), or emojis. Single column only.
+const RESUME_SPEC = `The candidate's resume rewritten to maximize match with THIS job while staying 100% truthful. It MUST follow this EXACT structure and conventions so it parses cleanly into an ATS and into a Word document. Output as plain text — NO tables, columns, text boxes, graphics, markdown symbols (no #, *, **), or emojis. Single column only.
 
   STRUCTURE (in this order):
   Line 1: The candidate's full name only.
@@ -36,11 +33,79 @@ Return ONLY valid JSON with this exact structure:
 
   Education: ALWAYS use these exact two lines, in this order, regardless of what the source resume says (one per line, form "Degree — School, Year"):
     Master of Science in Computer Science — University of the Cumberlands, 2016
-    Bachelor of Science in Computer Science — Jawaharlal Nehru Technological University (JNTUH), 2013
+    Bachelor of Science in Computer Science — Jawaharlal Nehru Technological University (JNTUH), 2013`;
 
-- interviewQuestions: 10 likely interview questions with brief answer guidance for each.
+const INTERVIEW_SPEC = '10 likely interview questions with brief answer guidance for each.';
 
-- companyBrief: A 1-page brief on the company — mission, culture, recent highlights from the job description, and why this role matters.`;
+const BRIEF_SPEC = 'A 1-page brief on the company — mission, culture, recent highlights from the job description, and why this role matters.';
+
+const EMAIL_SPEC = `A professional email REPLYING to a recruiter who shared THIS job. Plain text only — NO markdown, asterisks, or bold symbols. Follow this EXACT structure so it is ready to send:
+
+  Subject: a concise subject with the role title (and company if known), e.g. "Subject: Java Developer — <Candidate Name> (H1B, C2C)".
+
+  Greeting: "Hi <recruiter first name if the posting names one, otherwise 'there'>,".
+
+  Opening line: "Thank you for reaching out! Please find my details below along with my updated resume attached."
+
+  Then a blank line, then a numbered list of details, each on its own line:
+  1. Current Location: <city, state from the resume>
+  2. Work Authorization: H1B – No sponsorship required
+  3. Expected Rate: Open to market rate on C2C
+  4. Reason for Change: Looking for new contract opportunities aligned with my <candidate's primary domain / skill area> expertise.
+  5. Best Fit: <2-4 sentences — total years of experience plus the specific skills, technologies, and domains THIS job emphasizes that the candidate genuinely has, drawn from the resume>
+
+  Then a blank line, then the line "Skill-wise details as requested:" followed by a numbered list of the 4-6 KEY skills/requirements named in the job description, each formatted "<Skill>: <1-2 sentence truthful detail of the candidate's hands-on experience with it, from the resume>".
+
+  Then a blank line, then: "Best time to connect: Monday–Friday, flexible after 10 AM EST. Best number: +18038146712."
+
+  Then: "Looking forward to speaking with you!"
+
+  Then a blank line, then the sign-off, each on its own line:
+  Thanks,
+  <candidate full name>
+  +18038146712
+  <email from resume>
+  <linkedin from resume>
+
+  Truthful — use only experience, skills, and domains genuinely present in the resume; tailor Best Fit and the skill-wise list to THIS job's requirements.`;
+
+const DOC_SPEC: Record<DocKind, string> = {
+  coverLetter: COVER_SPEC,
+  tailoredResume: RESUME_SPEC,
+  interviewQuestions: INTERVIEW_SPEC,
+  companyBrief: BRIEF_SPEC,
+  outreachEmail: EMAIL_SPEC,
+};
+
+const SYSTEM_PROMPT = `You are a professional career coach, resume writer, and ATS (Applicant Tracking System) optimization expert.
+Given a job description and a candidate's resume, produce five outputs in a single JSON response.
+Return ONLY valid JSON with this exact structure:
+{
+  "coverLetter": "...",
+  "tailoredResume": "...",
+  "interviewQuestions": "...",
+  "companyBrief": "...",
+  "outreachEmail": "..."
+}
+
+- coverLetter: ${COVER_SPEC}
+
+- tailoredResume: ${RESUME_SPEC}
+
+- interviewQuestions: ${INTERVIEW_SPEC}
+
+- companyBrief: ${BRIEF_SPEC}
+
+- outreachEmail: ${EMAIL_SPEC}`;
+
+// System prompt for generating ONE document as plain text (no JSON wrapper).
+function singleDocPrompt(kind: DocKind): string {
+  return `You are a professional career coach, resume writer, and ATS (Applicant Tracking System) optimization expert.
+Given a job description and a candidate's resume, produce ONLY the document described below.
+Output it as plain text — no JSON, no markdown fences, no preamble, no commentary, just the document content.
+
+${DOC_SPEC[kind]}`;
+}
 
 function buildUserMessage(jobText: string, resumeText: string): string {
   return `JOB DESCRIPTION:\n${jobText}\n\n---\n\nMY RESUME:\n${resumeText}`;
@@ -146,6 +211,84 @@ export async function generateAll(
   if (provider === 'openrouter') return callOpenRouter(apiKey, openRouterModel, jobText, resumeText);
   if (provider === 'claude') return callClaude(apiKey, jobText, resumeText);
   return callOpenAI(apiKey, jobText, resumeText);
+}
+
+// Provider call that returns raw plain text (for single-document generation).
+async function callProviderText(
+  provider: AIProvider,
+  apiKey: string,
+  system: string,
+  user: string,
+  openRouterModel: string
+): Promise<string> {
+  if (provider === 'claude') {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8192,
+        system,
+        messages: [{ role: 'user', content: user }],
+      }),
+    });
+    if (!res.ok) throw new Error(`Claude API error ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as { content: Array<{ text: string }> };
+    return data.content[0]?.text ?? '';
+  }
+
+  const url = provider === 'openai'
+    ? 'https://api.openai.com/v1/chat/completions'
+    : 'https://openrouter.ai/api/v1/chat/completions';
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://job-search-copilot.local';
+    headers['X-Title'] = 'Job Search Copilot';
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: provider === 'openai' ? 'gpt-4o' : openRouterModel,
+      max_tokens: 8192,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`${provider} API error ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
+  return data.choices[0]?.message?.content ?? '';
+}
+
+/** Generate a SINGLE document (cheaper/faster when you don't need all four). */
+export async function generateDoc(
+  provider: AIProvider,
+  apiKey: string,
+  kind: DocKind,
+  jobText: string,
+  resumeText: string,
+  openRouterModel = 'anthropic/claude-sonnet-4-6'
+): Promise<string> {
+  if (!apiKey) throw new Error('No API key configured. Open Settings to add one.');
+  if (!resumeText) throw new Error('No resume found. Open Settings to upload your resume.');
+  const text = await callProviderText(
+    provider,
+    apiKey,
+    singleDocPrompt(kind),
+    buildUserMessage(jobText, resumeText),
+    openRouterModel
+  );
+  return text.trim();
 }
 
 // Live job search via OpenRouter (Perplexity Sonar models have web access).

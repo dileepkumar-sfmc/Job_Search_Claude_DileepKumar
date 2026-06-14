@@ -3,7 +3,7 @@ import type { SearchPrefs, JobSearchResult } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
 import { searchJobs } from '../../lib/ai';
-import { searchRealJobs } from '../../lib/jobsApi';
+import { searchRealJobs, searchRemotiveJobs } from '../../lib/jobsApi';
 import { safeHttpUrl } from '../../lib/url';
 import { buildBoardLinks, jobSearchUrl } from '../../lib/boards';
 
@@ -45,11 +45,10 @@ export function JobSearchModal({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<JobSearchResult[] | null>(null);
-  const [source, setSource] = useState<'api' | 'ai'>('ai');
+  const [source, setSource] = useState<'api' | 'remotive' | 'ai'>('ai');
   const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
 
-  // Prefer the real jobs API (working links) whenever a key is configured;
-  // otherwise fall back to the AI search (approximate leads).
+  // Source priority: JSearch (best, needs key) → Remotive (real, no key) → AI leads.
   const useRealApi = Boolean(jobsApiKey);
 
   const existingKeys = new Set(jobs.map((j) => `${norm(j.title)}@${norm(j.company)}`));
@@ -73,8 +72,21 @@ export function JobSearchModal({ onClose }: Props) {
         setSource('api');
         setResults(await searchRealJobs(jobsApiKey, prefs));
       } else {
-        setSource('ai');
-        setResults(await searchJobs(apiKey, searchModel, prefs, resumeText));
+        // No key: try real remote postings (Remotive, no key) first; if it finds
+        // nothing or errors, fall back to AI leads so the user always gets results.
+        let remotive: JobSearchResult[] = [];
+        try {
+          remotive = await searchRemotiveJobs(prefs);
+        } catch {
+          remotive = [];
+        }
+        if (remotive.length) {
+          setSource('remotive');
+          setResults(remotive);
+        } else {
+          setSource('ai');
+          setResults(await searchJobs(apiKey, searchModel, prefs, resumeText));
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
@@ -85,15 +97,22 @@ export function JobSearchModal({ onClose }: Props) {
 
   function handleAdd(r: JobSearchResult) {
     const key = `${norm(r.title)}@${norm(r.company)}`;
+    // Real (JSearch) postings carry the full JD — use it verbatim for tailoring.
+    // AI leads have only a short summary, so fall back to the assembled fields.
+    const rawText = r.description?.trim()
+      ? [r.title, r.company, r.location, r.employmentType, '', r.description.trim()]
+          .filter((x) => x !== undefined)
+          .join('\n')
+      : [r.title, r.company, r.location, r.employmentType, r.summary, r.fit]
+          .filter(Boolean)
+          .join('\n');
     addJob({
       id: crypto.randomUUID(),
       title: r.title,
       company: r.company,
       location: r.location,
       url: r.url,
-      rawText: [r.title, r.company, r.location, r.employmentType, r.summary, r.fit]
-        .filter(Boolean)
-        .join('\n'),
+      rawText,
       summary: r.summary,
       column: 'wishlist',
       createdAt: new Date().toISOString(),
@@ -117,7 +136,7 @@ export function JobSearchModal({ onClose }: Props) {
             <p className="text-[11px] text-ink-subtle mt-0.5">
               {useRealApi
                 ? 'Real postings via JSearch · live apply links'
-                : `AI leads via ${searchModel} · add a jobs API key in Settings for real postings`}
+                : 'Real remote jobs (no key needed) · add a jobs API key in Settings for wider coverage'}
             </p>
           </div>
           <button
@@ -305,9 +324,17 @@ export function JobSearchModal({ onClose }: Props) {
                           {r.location ? ` · ${r.location}` : ''}
                           {r.employmentType ? ` · ${r.employmentType}` : ''}
                         </p>
-                        {r.posted && (
-                          <p className="text-[11px] text-ink-tertiary mt-0.5">Posted {r.posted}</p>
-                        )}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {r.posted && (
+                            <span className="text-[11px] text-ink-tertiary">Posted {r.posted}</span>
+                          )}
+                          {r.source && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success
+                                             bg-success/10 border border-success/30 rounded-full px-1.5 py-0.5">
+                              <span className="text-[8px]">●</span> via {r.source}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleAdd(r)}
@@ -325,8 +352,8 @@ export function JobSearchModal({ onClose }: Props) {
                       <p className="text-[12px] text-ink-subtle mt-2 leading-relaxed">{r.fit || r.summary}</p>
                     )}
                     <div className="flex items-center gap-3 mt-2">
-                      {source === 'api' ? (
-                        // Real API: the URL is a genuine apply link — lead with it.
+                      {source !== 'ai' ? (
+                        // Real source (JSearch/Remotive): the URL is a genuine apply link — lead with it.
                         <>
                           {safeUrl && (
                             <a
@@ -382,9 +409,9 @@ export function JobSearchModal({ onClose }: Props) {
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-hairline shrink-0">
           <span className="text-[11px] text-ink-tertiary">
-            {useRealApi
-              ? 'Real postings from JSearch — apply links open the live listing.'
-              : 'AI-surfaced leads — always verify the posting before applying.'}
+            {results && source === 'ai'
+              ? 'AI-surfaced leads — always verify the posting before applying.'
+              : 'Real postings — apply links open the live listing.'}
           </span>
           <button
             onClick={handleSearch}

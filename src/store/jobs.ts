@@ -13,7 +13,7 @@ interface JobsStore {
   addJob: (job: Job) => Promise<void>;
   updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
   moveJob: (id: string, column: ColumnId) => Promise<void>;
-  setGenerated: (id: string, generated: GeneratedContent) => Promise<void>;
+  setGenerated: (id: string, generated: Partial<GeneratedContent>) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
   importJobs: (jobs: Job[]) => Promise<void>;
 }
@@ -167,7 +167,18 @@ export const useJobsStore = create<JobsStore>()(
       },
 
       setGenerated: async (id, generated) => {
-        await get().updateJob(id, { generated });
+        // Merge so individually-generated docs accumulate onto the same job.
+        const existing = get().jobs.find((j) => j.id === id)?.generated;
+        const merged: GeneratedContent = {
+          coverLetter: '',
+          tailoredResume: '',
+          interviewQuestions: '',
+          companyBrief: '',
+          outreachEmail: '',
+          ...existing,
+          ...generated,
+        };
+        await get().updateJob(id, { generated: merged });
       },
 
       deleteJob: async (id) => {

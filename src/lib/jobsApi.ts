@@ -32,9 +32,20 @@ interface JSearchJob {
   job_country?: string;
   job_is_remote?: boolean;
   job_apply_link?: string;
+  job_publisher?: string;
   job_employment_type?: string;
   job_description?: string;
   job_posted_at_datetime_utc?: string;
+}
+
+/** Prefer the publisher name; fall back to the apply-link's domain. */
+function sourceLabel(j: JSearchJob): string {
+  if (j.job_publisher?.trim()) return j.job_publisher.trim();
+  try {
+    return new URL(j.job_apply_link || '').hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
 }
 
 function relativePosted(iso?: string): string {
@@ -108,5 +119,119 @@ export async function searchRealJobs(
     summary: (j.job_description || '').replace(/\s+/g, ' ').trim().slice(0, 280),
     fit: '', // real listings carry no AI fit narrative
     posted: relativePosted(j.job_posted_at_datetime_utc),
+    source: sourceLabel(j),
+    description: (j.job_description || '').trim(), // full real JD — feeds tailoring
   }));
+}
+
+// --- Remotive: a free, NO-KEY real-jobs source (remote roles only) -----------
+// Public API, no signup. Coverage is remote-only and smaller than JSearch, but
+// every result is a real posting with a working URL — a good zero-setup default.
+
+const MAX_DAYS: Record<SearchPrefs['datePosted'], number> = {
+  any: 9999,
+  '24h': 1,
+  '3d': 3,
+  week: 7,
+  month: 31,
+};
+
+// Our employment labels → Remotive `job_type` values.
+const REMOTIVE_TYPES: Record<string, string[]> = {
+  'Full-time': ['full_time'],
+  'Contract/C2C': ['contract', 'freelance'],
+  'Part-time': ['part_time'],
+  Internship: ['internship'],
+};
+
+interface RemotiveJob {
+  url?: string;
+  title?: string;
+  company_name?: string;
+  candidate_required_location?: string;
+  job_type?: string;
+  category?: string;
+  publication_date?: string;
+  description?: string;
+}
+
+// Remotive's `search` param matches loosely (returns off-target roles), so we
+// re-filter on the role keywords client-side. Drop seniority filler words and
+// require at least one meaningful term to appear in the title or category.
+const ROLE_FILLER = new Set([
+  'senior', 'sr', 'junior', 'jr', 'lead', 'staff', 'principal', 'mid', 'entry', 'level',
+]);
+
+function roleTokens(role: string): string[] {
+  return role
+    .toLowerCase()
+    .split(/[^a-z0-9+#]+/)
+    .filter((t) => t.length >= 3 && !ROLE_FILLER.has(t));
+}
+
+function matchesRole(hay: string, tokens: string[]): boolean {
+  if (!tokens.length) return true;
+  const h = hay.toLowerCase();
+  return tokens.some((t) => h.includes(t));
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Search real remote postings via Remotive — no API key required. */
+export async function searchRemotiveJobs(prefs: SearchPrefs, limit = 20): Promise<JobSearchResult[]> {
+  const params = new URLSearchParams({ limit: '50' });
+  if (prefs.role.trim()) params.set('search', prefs.role.trim());
+
+  let res: Response;
+  try {
+    res = await fetch(`https://remotive.com/api/remote-jobs?${params.toString()}`);
+  } catch {
+    throw new Error('Network error reaching the jobs source.');
+  }
+  if (!res.ok) throw new Error(`Jobs source error (${res.status}).`);
+
+  const json = (await res.json()) as { jobs?: RemotiveJob[] };
+  let jobs = Array.isArray(json.jobs) ? json.jobs : [];
+
+  // Re-filter Remotive's loose search down to titles actually matching the role.
+  const tokens = roleTokens(prefs.role);
+  if (tokens.length) jobs = jobs.filter((j) => matchesRole(`${j.title ?? ''} ${j.category ?? ''}`, tokens));
+
+  // Client-side filters Remotive's simple API doesn't expose.
+  const wantTypes = prefs.employmentTypes.flatMap((t) => REMOTIVE_TYPES[t] ?? []);
+  if (wantTypes.length) jobs = jobs.filter((j) => j.job_type && wantTypes.includes(j.job_type));
+
+  const maxDays = MAX_DAYS[prefs.datePosted];
+  if (maxDays < 9999) {
+    jobs = jobs.filter((j) => {
+      if (!j.publication_date) return false;
+      const days = (Date.now() - new Date(j.publication_date).getTime()) / 86_400_000;
+      return days <= maxDays;
+    });
+  }
+
+  return jobs.slice(0, limit).map((j) => {
+    const full = stripHtml(j.description || '');
+    return {
+      title: j.title?.trim() || 'Untitled role',
+      company: j.company_name?.trim() || 'Unknown company',
+      location: j.candidate_required_location?.trim() || 'Remote',
+      url: j.url?.trim() || '',
+      employmentType: j.job_type ? j.job_type.replace('_', '-') : '',
+      summary: full.slice(0, 280),
+      fit: '',
+      posted: relativePosted(j.publication_date),
+      source: 'Remotive',
+      description: full,
+    };
+  });
 }
