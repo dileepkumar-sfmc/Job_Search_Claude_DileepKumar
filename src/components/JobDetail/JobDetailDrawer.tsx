@@ -166,7 +166,7 @@ export function JobDetailDrawer({ job, onClose }: Props) {
           {generating ? (
             <div className="border border-hairline rounded-xl p-8 flex flex-col items-center gap-3 edge-top bg-surface-1">
               <span className="animate-spin-slow text-2xl text-primary-hover">⟳</span>
-              <p className="text-xs text-ink-subtle">Tailoring all four documents…</p>
+              <p className="text-xs text-ink-subtle">Tailoring all your documents…</p>
             </div>
           ) : (
             <GeneratedDocs

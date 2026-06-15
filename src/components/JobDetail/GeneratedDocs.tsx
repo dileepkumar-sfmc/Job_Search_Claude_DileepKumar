@@ -27,8 +27,11 @@ const TABS: { id: DocKind; label: string; docFormat: 'docx' | 'txt'; fileLabel: 
   { id: 'tailoredResume', label: 'Tailored Resume', docFormat: 'docx', fileLabel: 'Resume' },
   { id: 'interviewQuestions', label: 'Interview Prep', docFormat: 'txt', fileLabel: 'Interview-Prep' },
   { id: 'companyBrief', label: 'Company Brief', docFormat: 'txt', fileLabel: 'Company-Brief' },
-  { id: 'outreachEmail', label: 'Email', docFormat: 'txt', fileLabel: 'Outreach-Email' },
+  { id: 'outreachEmail', label: 'Recruiter Email', docFormat: 'txt', fileLabel: 'Recruiter-Email' },
 ];
+
+// Email tabs get a "Subject:"-aware Open-in-Gmail action.
+const EMAIL_TABS = new Set<DocKind>(['outreachEmail']);
 
 export function GeneratedDocs({ generated, company, title, recruiterEmail, onGenerate, generatingKind }: Props) {
   const [activeTab, setActiveTab] = useState<DocKind>('coverLetter');
@@ -94,7 +97,7 @@ export function GeneratedDocs({ generated, company, title, recruiterEmail, onGen
         {hasContent && !isGenerating && (
           <>
             <div className="absolute top-3 right-3 flex items-center gap-1.5">
-              {activeTab === 'outreachEmail' && (
+              {EMAIL_TABS.has(activeTab) && (
                 <button
                   onClick={handleOpenInGmail}
                   className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md border
@@ -139,7 +142,7 @@ export function GeneratedDocs({ generated, company, title, recruiterEmail, onGen
             </div>
             <pre
               className="text-[13px] text-ink-muted whitespace-pre-wrap font-sans leading-[1.7] pr-40 mt-1"
-              style={{ letterSpacing: '-0.003em' }}
+              style={{ letterSpacing: '-0.003em', paddingRight: EMAIL_TABS.has(activeTab) ? '19rem' : undefined }}
             >
               {content}
             </pre>
