@@ -225,3 +225,34 @@ export async function downloadTxt(content: string, baseName: string) {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   await saveBlob(blob, `${slug(baseName)}.txt`, 'text/plain', 'txt');
 }
+
+/**
+ * Download a prose document (e.g. cover letter) as a .pdf. Letter-size,
+ * 1-inch margins, Times 11pt — the standard cover-letter format recruiters
+ * expect. jspdf is dynamically imported so it only ships when actually used.
+ */
+export async function downloadPdf(content: string, baseName: string) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const margin = 72;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const maxWidth = pageWidth - margin * 2;
+  doc.setFont('Times', 'normal');
+  doc.setFontSize(11);
+  const lineHeight = 15;
+  let y = margin;
+  for (const para of content.split(/\n/)) {
+    const wrapped = para.trim() === '' ? [''] : doc.splitTextToSize(para, maxWidth);
+    for (const line of wrapped) {
+      if (y > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    }
+  }
+  const blob = doc.output('blob');
+  await saveBlob(blob, `${slug(baseName)}.pdf`, 'application/pdf', 'pdf');
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GeneratedContent } from '../../types';
 import type { DocKind } from '../../lib/ai';
-import { downloadDocx, downloadTxt } from '../../lib/download';
+import { downloadDocx, downloadPdf, downloadTxt } from '../../lib/download';
 
 interface Props {
   generated: GeneratedContent | undefined;
@@ -33,10 +33,14 @@ const TABS: { id: DocKind; label: string; docFormat: 'docx' | 'txt'; fileLabel: 
 // Email tabs get a "Subject:"-aware Open-in-Gmail action.
 const EMAIL_TABS = new Set<DocKind>(['outreachEmail']);
 
+// Tabs that ALSO offer a .pdf download alongside their primary format.
+const PDF_TABS = new Set<DocKind>(['coverLetter']);
+
 export function GeneratedDocs({ generated, company, title, recruiterEmail, onGenerate, generatingKind }: Props) {
   const [activeTab, setActiveTab] = useState<DocKind>('coverLetter');
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingPdf, setSavingPdf] = useState(false);
 
   const tab = TABS.find((t) => t.id === activeTab)!;
   const content = generated?.[activeTab] ?? '';
@@ -69,6 +73,16 @@ export function GeneratedDocs({ generated, company, title, recruiterEmail, onGen
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDownloadPdf() {
+    setSavingPdf(true);
+    try {
+      const base = [company, title, tab.fileLabel].filter(Boolean).join('-') || tab.fileLabel;
+      await downloadPdf(content, base);
+    } finally {
+      setSavingPdf(false);
     }
   }
 
@@ -125,6 +139,22 @@ export function GeneratedDocs({ generated, company, title, recruiterEmail, onGen
               >
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
+              {PDF_TABS.has(activeTab) && (
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={savingPdf}
+                  className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-md border
+                             bg-surface-3 border-hairline text-ink-subtle hover:text-ink transition-all
+                             disabled:opacity-50"
+                  title="Download as .pdf"
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M6 1.5v6m0 0L3.5 5M6 7.5 8.5 5M2 9.5v.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-.5"
+                          stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {savingPdf ? 'Saving…' : '.pdf'}
+                </button>
+              )}
               <button
                 onClick={handleDownload}
                 disabled={saving}
