@@ -31,7 +31,7 @@ const RESUME_SPEC = `The candidate's resume rewritten to maximize match with THI
     Environment: <comma-separated tech list — surface the technologies this job asks for that the candidate truly used>
   Reframe/reorder bullets and the Environment list to surface what THIS job values most. Keep every company, title, location, and date exactly as in the source.
 
-  Education: take the degrees, schools, and years EXACTLY from the source resume (one per line, form "Degree — School, Year"), reverse-chronological. Never invent or substitute a school, degree, or year the resume does not list.
+  Education: take the degrees, schools, and years EXACTLY from the source resume (one per line, form "Degree — School, Year"), reverse-chronological. Never invent or substitute a school, degree, or year the resume does not list. If the source resume contains NO education entries at all, OMIT the entire Education section from the output — do not fabricate one, do not guess based on the candidate's name or background, and do not insert placeholders.
 
   Certifications: if the source resume lists certifications, include a "Certifications" section and list each certification on its own line, exactly as named in the resume (most relevant to THIS job first). Omit the section entirely if the resume has none.`;
 
