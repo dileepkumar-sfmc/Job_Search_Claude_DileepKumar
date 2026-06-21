@@ -399,28 +399,18 @@ export function JobSearchModal({ onClose }: Props) {
                           </a>
                         </>
                       ) : (
-                        // AI leads: direct URL may be stale/fabricated — lead with a
-                        // guaranteed-working search for the role instead.
-                        <>
-                          <a
-                            href={jobSearchUrl(r.title, r.company, r.location)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover"
-                          >
-                            Find this posting ↗
-                          </a>
-                          {safeUrl && (
-                            <a
-                              href={safeUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] text-ink-tertiary hover:text-ink-subtle"
-                            >
-                              direct link (unverified)
-                            </a>
-                          )}
-                        </>
+                        // AI leads: direct URLs are unreliable (Sonar often fabricates
+                        // or returns stale links). Drop the unverified link entirely
+                        // and only show a Google Jobs deep-link that lands in the real
+                        // Jobs tab with current postings matching this title + company.
+                        <a
+                          href={jobSearchUrl(r.title, r.company, r.location)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary-hover"
+                        >
+                          Open on Google Jobs ↗
+                        </a>
                       )}
                     </div>
                   </div>
@@ -436,7 +426,7 @@ export function JobSearchModal({ onClose }: Props) {
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-hairline shrink-0">
           <span className="text-[11px] text-ink-tertiary">
             {results && results.length > 0 && source === 'ai'
-              ? 'AI-surfaced leads — always verify the posting before applying.'
+              ? 'AI-suggested leads — click Open on Google Jobs to find the real posting.'
               : results && results.length > 0
                 ? 'Real postings — apply links open the live listing.'
                 : useRealApi

@@ -72,14 +72,16 @@ const GOOGLE_EMP: Record<string, string> = {
 
 /**
  * A reliable "find this exact posting" link. AI search often returns fabricated
- * or stale direct URLs that 404; a Google query for the title + company always
- * loads and surfaces the real listing across whatever board hosts it.
+ * or stale direct URLs that 404; a Google JOBS query for the title + company
+ * lands the user directly in Google's Jobs tab with real listings for that role.
+ * `ibp=htl;jobs` is the Jobs-tab switch (same parameter used by the Google Jobs
+ * board card), so the result page is the same job index Google for Jobs surfaces.
  */
 export function jobSearchUrl(title: string, company: string, location = ''): string {
-  const terms = [title && `"${title}"`, company && `"${company}"`, location, 'job']
+  const terms = [title && `"${title}"`, company && `"${company}"`, location]
     .filter(Boolean)
     .join(' ');
-  return `https://www.google.com/search?q=${encodeURIComponent(terms)}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(terms)}&ibp=htl;jobs`;
 }
 
 export function buildBoardLinks(p: SearchPrefs): BoardLink[] {
