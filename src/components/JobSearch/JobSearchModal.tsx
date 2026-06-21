@@ -258,7 +258,7 @@ export function JobSearchModal({ onClose }: Props) {
               </label>
               <span className="text-[10px] text-ink-tertiary">Real postings · pre-filtered</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {boardLinks.map((b) => (
                 <a
                   key={b.name}
