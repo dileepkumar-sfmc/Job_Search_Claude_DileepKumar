@@ -162,6 +162,16 @@ const ROLE_FILLER = new Set([
   'senior', 'sr', 'junior', 'jr', 'lead', 'staff', 'principal', 'mid', 'entry', 'level',
 ]);
 
+// Generic role-type words that appear in nearly every job title. If the user
+// query contains a SPECIFIC discriminator (Java, Salesforce, DevOps, etc.),
+// matching only on these would let everything through ("Java Developer" must
+// not return "Frontend Developer"). Used to split tokens into specific vs generic.
+const ROLE_GENERIC = new Set([
+  'developer', 'engineer', 'engineering', 'programmer', 'architect',
+  'analyst', 'specialist', 'consultant', 'manager', 'coordinator',
+  'administrator', 'admin',
+]);
+
 function roleTokens(role: string): string[] {
   return role
     .toLowerCase()
@@ -169,10 +179,18 @@ function roleTokens(role: string): string[] {
     .filter((t) => t.length >= 3 && !ROLE_FILLER.has(t));
 }
 
+/**
+ * Pass only when the candidate's title/category contains at least one of the
+ * SPECIFIC (non-generic) tokens — e.g. "Java Developer" requires "java" to
+ * appear, not just "developer". If the query has no specific tokens (e.g. user
+ * typed only "Developer"), fall back to matching any token.
+ */
 function matchesRole(hay: string, tokens: string[]): boolean {
   if (!tokens.length) return true;
   const h = hay.toLowerCase();
-  return tokens.some((t) => h.includes(t));
+  const specific = tokens.filter((t) => !ROLE_GENERIC.has(t));
+  const required = specific.length ? specific : tokens;
+  return required.some((t) => h.includes(t));
 }
 
 function stripHtml(html: string): string {
