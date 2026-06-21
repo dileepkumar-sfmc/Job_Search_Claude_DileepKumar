@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SearchPrefs, JobSearchResult } from '../../types';
 import { useJobsStore } from '../../store/jobs';
 import { useSettingsStore } from '../../store/settings';
@@ -47,6 +47,15 @@ export function JobSearchModal({ onClose }: Props) {
   const [results, setResults] = useState<JobSearchResult[] | null>(null);
   const [source, setSource] = useState<'api' | 'remotive' | 'ai'>('ai');
   const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // When a scan finishes (results array OR error), pull the user's eye down to it —
+  // otherwise the outcome renders below the prominent boards section and is missed.
+  useEffect(() => {
+    if (results !== null || error) {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [results, error]);
 
   // Source priority: JSearch (best, needs key) → Remotive (real, no key) → AI leads.
   const useRealApi = Boolean(jobsApiKey);
@@ -290,26 +299,31 @@ export function JobSearchModal({ onClose }: Props) {
             </p>
           )}
 
-          {error && (
-            <div className="bg-surface-2 border border-hairline rounded-md px-3 py-2 text-[12px] text-ink-muted flex gap-2">
-              <span className="text-status-rejected shrink-0">●</span>
-              <span>{error}</span>
-            </div>
-          )}
+          <div ref={resultsRef}>
+            {error && (
+              <div className="bg-surface-2 border border-hairline rounded-md px-3 py-2 text-[12px] text-ink-muted flex gap-2">
+                <span className="text-status-rejected shrink-0">●</span>
+                <span>{error}</span>
+              </div>
+            )}
 
-          {/* Results */}
-          {loading && (
-            <div className="border border-hairline rounded-xl p-8 flex flex-col items-center gap-3 edge-top">
-              <span className="animate-spin-slow text-2xl text-primary-hover">⟳</span>
-              <p className="text-xs text-ink-subtle">Searching live job boards…</p>
-            </div>
-          )}
+            {/* Results */}
+            {loading && (
+              <div className="border border-hairline rounded-xl p-8 flex flex-col items-center gap-3 edge-top">
+                <span className="animate-spin-slow text-2xl text-primary-hover">⟳</span>
+                <p className="text-xs text-ink-subtle">Searching live job boards…</p>
+              </div>
+            )}
 
-          {results && results.length === 0 && !loading && (
-            <p className="text-[13px] text-ink-subtle text-center py-6">
-              No matching roles in the in-app scan. Open a live board above for wider coverage.
-            </p>
-          )}
+            {results && results.length === 0 && !loading && (
+              <div className="border border-hairline rounded-xl p-5 edge-top bg-surface-2 flex flex-col items-center gap-2 text-center">
+                <span className="text-2xl text-ink-tertiary">⌕</span>
+                <p className="text-[13px] text-ink font-medium">No matches in the in-app scan</p>
+                <p className="text-[12px] text-ink-subtle max-w-md">
+                  The free remote sources don't have postings for these filters. Try a board above (<strong className="text-ink font-medium">Google Jobs</strong> has the widest coverage) — one click opens it with your filters pre-applied.
+                </p>
+              </div>
+            )}
 
           {results && results.length > 0 && (
             <div className="space-y-2">
@@ -414,15 +428,16 @@ export function JobSearchModal({ onClose }: Props) {
               })}
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer — boards above are the primary path; the in-app scan is secondary
             (best when JSearch key is set; otherwise remote-only via Remotive + AI fallback). */}
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-hairline shrink-0">
           <span className="text-[11px] text-ink-tertiary">
-            {results && source === 'ai'
+            {results && results.length > 0 && source === 'ai'
               ? 'AI-surfaced leads — always verify the posting before applying.'
-              : results
+              : results && results.length > 0
                 ? 'Real postings — apply links open the live listing.'
                 : useRealApi
                   ? 'In-app scan uses your JSearch key for real, current postings.'
