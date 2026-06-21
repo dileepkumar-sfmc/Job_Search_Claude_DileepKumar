@@ -134,9 +134,7 @@ export function JobSearchModal({ onClose }: Props) {
               Find Jobs
             </h2>
             <p className="text-[11px] text-ink-subtle mt-0.5">
-              {useRealApi
-                ? 'Real postings via JSearch · live apply links'
-                : 'Real remote jobs (no key needed) · add a jobs API key in Settings for wider coverage'}
+              Open the real boards pre-filtered with your criteria{useRealApi ? ' · or run an in-app scan via JSearch' : ' · or run a remote-only in-app scan'}
             </p>
           </div>
           <button
@@ -250,27 +248,39 @@ export function JobSearchModal({ onClose }: Props) {
             />
           </div>
 
-          {/* Open the real boards, pre-filtered with the same preferences */}
-          <div className="space-y-1.5 border-t border-hairline pt-3">
-            <label className="text-[11px] font-medium text-ink-subtle block">
-              Or open a live board with these filters
-            </label>
-            <div className="flex flex-wrap gap-1.5">
+          {/* PRIMARY action: live board deep-links. Each opens the real board with the
+              form's role/location/work-mode/date filters pre-applied — the most reliable
+              way to surface real, current postings (especially for US contract market). */}
+          <div className="space-y-2.5 border-t border-hairline pt-4">
+            <div className="flex items-baseline justify-between">
+              <label className="text-[12px] font-semibold text-ink block tracking-[-0.005em]">
+                Search on a live job board
+              </label>
+              <span className="text-[10px] text-ink-tertiary">Real postings · pre-filtered</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
               {boardLinks.map((b) => (
                 <a
                   key={b.name}
                   href={b.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-medium
-                             bg-surface-2 text-ink-subtle border border-hairline hover:text-ink hover:border-primary transition-all"
+                  className="group flex flex-col items-center justify-center gap-1 px-3 py-3.5 rounded-lg
+                             bg-surface-2 border border-hairline hover:border-primary hover:bg-surface-3
+                             transition-all edge-top"
                 >
-                  {b.name} ↗
+                  <span className="text-[13px] font-semibold text-ink group-hover:text-primary transition-colors">
+                    {b.name}
+                  </span>
+                  <span className="text-[10px] text-ink-tertiary group-hover:text-primary/80 transition-colors">
+                    Open ↗
+                  </span>
                 </a>
               ))}
             </div>
             <p className="text-[11px] text-ink-tertiary">
-              Opens the real job board filtered to your role, location, work mode, and date — paste a listing back via Add Job to tailor it.
+              Opens the real board with your role, location, work mode, and date pre-applied.
+              Paste any listing back via <strong className="text-ink-subtle font-medium">Add Job</strong> to tailor your resume and cover letter for it.
             </p>
           </div>
 
@@ -297,7 +307,7 @@ export function JobSearchModal({ onClose }: Props) {
 
           {results && results.length === 0 && !loading && (
             <p className="text-[13px] text-ink-subtle text-center py-6">
-              No matching roles found. Try broadening your role or location.
+              No matching roles in the in-app scan. Open a live board above for wider coverage.
             </p>
           )}
 
@@ -406,22 +416,34 @@ export function JobSearchModal({ onClose }: Props) {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer — boards above are the primary path; the in-app scan is secondary
+            (best when JSearch key is set; otherwise remote-only via Remotive + AI fallback). */}
         <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-hairline shrink-0">
           <span className="text-[11px] text-ink-tertiary">
             {results && source === 'ai'
               ? 'AI-surfaced leads — always verify the posting before applying.'
-              : 'Real postings — apply links open the live listing.'}
+              : results
+                ? 'Real postings — apply links open the live listing.'
+                : useRealApi
+                  ? 'In-app scan uses your JSearch key for real, current postings.'
+                  : 'In-app scan covers remote-only roles. The boards above have wider coverage.'}
           </span>
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="flex items-center gap-2 pl-3 pr-3.5 py-2 bg-primary hover:bg-primary-hover
-                       text-white text-[13px] font-medium rounded-md transition-all edge-top-strong
-                       active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-2 hover:bg-surface-3
+                       text-ink-subtle hover:text-ink text-[12px] font-medium rounded-md
+                       border border-hairline transition-all disabled:opacity-50"
+            title={useRealApi ? 'Run a JSearch query inside the app' : 'Scan remote-only sources (Remotive + AI fallback)'}
           >
             {loading ? <span className="animate-spin-slow">⟳</span> : '🔍'}
-            {loading ? 'Searching…' : results ? 'Search again' : 'Search'}
+            {loading
+              ? 'Scanning…'
+              : results
+                ? 'Scan again'
+                : useRealApi
+                  ? 'Quick scan (JSearch)'
+                  : 'Quick scan (remote-only)'}
           </button>
         </div>
       </div>
