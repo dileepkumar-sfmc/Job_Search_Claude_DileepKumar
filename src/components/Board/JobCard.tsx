@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Job } from '../../types';
+import { useJobsStore } from '../../store/jobs';
+import { COLUMNS } from '../../lib/columns';
 
 interface Props {
   job: Job;
@@ -13,6 +17,24 @@ export function JobCard({ job, accent, index, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: job.id,
   });
+  const moveJob = useJobsStore((s) => s.moveJob);
+  // Right-click "move to" menu — viewport coords, or null when closed.
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Close the menu on any outside interaction or Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -26,10 +48,19 @@ export function JobCard({ job, accent, index, onClick }: Props) {
     day: 'numeric',
   });
 
+  function openMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    // Clamp so the ~190px-wide menu never spills off the right/bottom edge.
+    const x = Math.min(e.clientX, window.innerWidth - 200);
+    const y = Math.min(e.clientY, window.innerHeight - 240);
+    setMenu({ x, y });
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
+      onContextMenu={openMenu}
       className="group relative bg-surface-1 border border-hairline rounded-lg edge-top
                  hover:border-hairline-strong hover:bg-surface-2 hover:-translate-y-px
                  transition-all duration-150 select-none animate-fade-up overflow-hidden"
@@ -91,6 +122,49 @@ export function JobCard({ job, accent, index, onClick }: Props) {
           <span className="tabular-nums shrink-0">{date}</span>
         </div>
       </div>
+
+      {/* Right-click "Move to" menu (portaled to escape the card's overflow-hidden) */}
+      {menu &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[60]" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
+            <div
+              className="fixed z-[61] w-[190px] bg-surface-2 border border-hairline rounded-lg edge-top
+                         py-1 animate-scale-in"
+              style={{ left: menu.x, top: menu.y }}
+            >
+              <p className="px-3 py-1.5 text-[10px] font-medium text-ink-tertiary uppercase tracking-wide">
+                Move to
+              </p>
+              {COLUMNS.map((col) => {
+                const current = col.id === job.column;
+                return (
+                  <button
+                    key={col.id}
+                    disabled={current}
+                    onClick={() => {
+                      if (!current) moveJob(job.id, col.id);
+                      setMenu(null);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12px] transition-colors
+                      ${current
+                        ? 'text-ink-tertiary cursor-default'
+                        : 'text-ink-muted hover:text-ink hover:bg-surface-3'
+                      }`}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: col.color }}
+                    />
+                    {col.label}
+                    {current && <span className="ml-auto text-[10px] text-ink-tertiary">current</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 }

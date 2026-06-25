@@ -97,6 +97,8 @@ The five pipeline columns are defined once in `src/lib/columns.ts` (`COLUMNS`, `
 ### Drag and drop
 Cards use `@dnd-kit/sortable` (`useSortable`) with a **dedicated drag handle** (grip icon, left edge of each card, visible on hover). The `{...listeners}` are spread only on the handle div — the rest of the card is a plain `onClick` target to open the detail drawer. This separates drag from click and prevents conflicts. Columns use `useDroppable`. Cross-column drops are resolved in `handleDragEnd` in `KanbanBoard.tsx`.
 
+**Right-click "Move to" menu:** as a faster alternative to dragging, right-clicking a card (`onContextMenu` in `JobCard.tsx`) opens a small menu listing all five columns (from `COLUMNS`), each with its status dot; the current column is disabled and labelled "current". Picking one calls `moveJob(job.id, col.id)` directly from the store. The menu is rendered via `createPortal` to `document.body` (so the card's `overflow-hidden` and any dnd transform don't clip it), positioned at the cursor with edge-clamping, and closes on outside click, scroll, resize, or Escape.
+
 ### Design system
 All colors are CSS custom properties defined in `src/styles/tokens.css` and mapped into Tailwind via `tailwind.config.js`. Use the token names (`bg-canvas`, `text-ink`, `border-hairline`, etc.) — never hardcode hex values. The full token spec is in `linear.md` at the repo root.
 
