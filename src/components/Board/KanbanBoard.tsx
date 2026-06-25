@@ -19,9 +19,10 @@ import { JobCard } from './JobCard';
 interface Props {
   onCardClick: (job: Job) => void;
   onAddClick: (defaultColumn?: ColumnId) => void;
+  onSearch: () => void;
 }
 
-export function KanbanBoard({ onCardClick, onAddClick }: Props) {
+export function KanbanBoard({ onCardClick, onAddClick, onSearch }: Props) {
   const { jobs, moveJob, importJobs } = useJobsStore();
   const [activeJob, setActiveJob] = useState<Job | null>(null);
 
@@ -62,6 +63,49 @@ export function KanbanBoard({ onCardClick, onAddClick }: Props) {
       const otherJobs = jobs.filter((j) => j.column !== overColumnId);
       importJobs([...otherJobs, ...reordered]);
     }
+  }
+
+  // First-run: a welcoming hero instead of five empty columns.
+  if (jobs.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center px-6 text-center animate-fade-up">
+        <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/15 edge-top mb-5">
+          <svg width="26" height="26" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5 13.5 4.75v6.5L8 14.5 2.5 11.25v-6.5L8 1.5Z" stroke="var(--primary-hover)" strokeWidth="1.1" strokeLinejoin="round" />
+            <circle cx="8" cy="8" r="2" fill="var(--primary-hover)" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-ink" style={{ letterSpacing: '-0.03em' }}>
+          Track your whole job search here
+        </h2>
+        <p className="text-[13px] text-ink-subtle mt-2 max-w-sm leading-relaxed">
+          Add a role to your board, then let the copilot tailor your resume, cover letter, and recruiter email for it. Drag or right-click cards to move them through your pipeline.
+        </p>
+        <div className="flex items-center gap-2.5 mt-6">
+          <button
+            onClick={() => onAddClick('wishlist')}
+            className="flex items-center gap-1.5 pl-3 pr-3.5 py-2 bg-primary hover:bg-primary-hover
+                       text-white text-[13px] font-medium rounded-md transition-all edge-top-strong active:scale-[0.98]"
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M7 2.5v9M2.5 7h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            Add your first job
+          </button>
+          <button
+            onClick={onSearch}
+            className="flex items-center gap-1.5 pl-3 pr-3.5 py-2 bg-surface-2 hover:bg-surface-3
+                       text-ink border border-hairline text-[13px] font-medium rounded-md transition-all edge-top active:scale-[0.98]"
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <circle cx="6.2" cy="6.2" r="3.8" stroke="currentColor" strokeWidth="1.5" />
+              <path d="m9.2 9.2 2.8 2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Find Jobs
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

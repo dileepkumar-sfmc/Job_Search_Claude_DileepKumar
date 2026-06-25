@@ -43,10 +43,27 @@ export function JobCard({ job, accent, index, onClick }: Props) {
     animationDelay: `${120 + index * 45}ms`,
   };
 
-  const date = new Date(job.createdAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  // Days the card has sat in its current stage (falls back to creation date).
+  const stageDays = Math.floor(
+    (Date.now() - new Date(job.stageChangedAt ?? job.createdAt).getTime()) / 86_400_000
+  );
+  const stageLabel = stageDays <= 0 ? 'today' : `${stageDays}d in stage`;
+  // Flag in-flight cards that have gone quiet — actionable staleness signal.
+  const stale = stageDays >= 14 && (job.column === 'applied' || job.column === 'interview');
+
+  // Which AI documents have been generated (for the count badge + tooltip).
+  const DOC_LABELS: Record<string, string> = {
+    coverLetter: 'Cover Letter',
+    tailoredResume: 'Resume',
+    interviewQuestions: 'Interview Prep',
+    companyBrief: 'Company Brief',
+    outreachEmail: 'Recruiter Email',
+  };
+  const docNames = job.generated
+    ? Object.entries(job.generated)
+        .filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
+        .map(([k]) => DOC_LABELS[k] ?? k)
+    : [];
 
   function openMenu(e: React.MouseEvent) {
     e.preventDefault();
@@ -101,13 +118,13 @@ export function JobCard({ job, accent, index, onClick }: Props) {
               {job.company || 'Unknown Company'}
             </p>
           </div>
-          {job.generated && (
+          {docNames.length > 0 && (
             <span
-              className="shrink-0 text-[10px] w-5 h-5 flex items-center justify-center rounded-md
-                         bg-primary/15 text-primary-hover"
-              title="AI documents generated"
+              className="shrink-0 text-[10px] h-5 px-1.5 flex items-center gap-0.5 rounded-md
+                         bg-primary/15 text-primary-hover font-medium tabular-nums"
+              title={`Generated: ${docNames.join(', ')}`}
             >
-              ✦
+              ✦ {docNames.length}
             </span>
           )}
         </div>
@@ -115,11 +132,16 @@ export function JobCard({ job, accent, index, onClick }: Props) {
         <div className="flex items-center gap-2 mt-2.5 text-[11px] text-ink-tertiary">
           {job.location && (
             <>
-              <span className="truncate max-w-[140px]">{job.location}</span>
+              <span className="truncate max-w-[120px]">{job.location}</span>
               <span className="w-1 h-1 rounded-full bg-ink-tertiary/50 shrink-0" />
             </>
           )}
-          <span className="tabular-nums shrink-0">{date}</span>
+          <span
+            className={`tabular-nums shrink-0 ${stale ? 'text-status-interview font-medium' : ''}`}
+            title={stale ? 'No movement in 2+ weeks' : undefined}
+          >
+            {stale && '⚠ '}{stageLabel}
+          </span>
         </div>
       </div>
 

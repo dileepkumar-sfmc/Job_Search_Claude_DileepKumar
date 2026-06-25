@@ -18,6 +18,9 @@ export interface Job {
   summary: string;
   column: ColumnId;
   createdAt: string;
+  /** When the job last moved to its current column (for the "days in stage" cue).
+   *  Client-only/optimistic; falls back to createdAt when absent. */
+  stageChangedAt?: string;
   generated?: GeneratedContent;
 }
 

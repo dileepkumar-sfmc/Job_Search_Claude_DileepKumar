@@ -163,7 +163,9 @@ export const useJobsStore = create<JobsStore>()(
       },
 
       moveJob: async (id, column) => {
-        await get().updateJob(id, { column });
+        // stageChangedAt is client-only (jobToRowPatch ignores unknown keys), so it
+        // updates the local "days in stage" cue without touching the DB schema.
+        await get().updateJob(id, { column, stageChangedAt: new Date().toISOString() });
       },
 
       setGenerated: async (id, generated) => {

@@ -21,7 +21,7 @@ export function KanbanColumn({ meta, index, jobs, onCardClick, onAddClick }: Pro
       style={{ animationDelay: `${index * 60}ms` }}
     >
       {/* Column header */}
-      <div className="flex items-center justify-between px-1.5 mb-2.5">
+      <div className="flex items-center justify-between px-1.5 mb-1.5">
         <div className="flex items-center gap-2">
           <span
             className="w-2 h-2 rounded-full shrink-0"
@@ -30,7 +30,11 @@ export function KanbanColumn({ meta, index, jobs, onCardClick, onAddClick }: Pro
           <span className="text-[11px] font-semibold text-ink-subtle tracking-[0.06em] uppercase">
             {meta.label}
           </span>
-          <span className="text-[11px] tabular-nums text-ink-tertiary font-medium">
+          <span
+            className="text-[10px] tabular-nums font-semibold leading-none px-1.5 py-0.5 rounded-full
+                       bg-surface-2 border border-hairline"
+            style={{ color: meta.color }}
+          >
             {jobs.length}
           </span>
         </div>
@@ -45,6 +49,12 @@ export function KanbanColumn({ meta, index, jobs, onCardClick, onAddClick }: Pro
           </svg>
         </button>
       </div>
+
+      {/* Accent rule — ties the column to its stage color */}
+      <div
+        className="h-[2px] rounded-full mx-1.5 mb-2 opacity-40"
+        style={{ backgroundColor: meta.color }}
+      />
 
       {/* Drop zone */}
       <div
@@ -71,15 +81,21 @@ export function KanbanColumn({ meta, index, jobs, onCardClick, onAddClick }: Pro
         {jobs.length === 0 && (
           <button
             onClick={onAddClick}
-            className="flex-1 flex flex-col items-center justify-center gap-2 py-8 rounded-lg
-                       border border-dashed border-hairline text-ink-tertiary
+            className="flex-1 flex flex-col items-center justify-center gap-1.5 py-8 rounded-lg
+                       border border-dashed border-hairline/70 text-ink-tertiary
                        hover:border-hairline-strong hover:text-ink-subtle transition-colors group"
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
-                 className="opacity-50 group-hover:opacity-100 transition-opacity">
-              <path d="M9 3.5v11M3.5 9h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-            <span className="text-[11px]">Add a job</span>
+            <span
+              className="w-7 h-7 flex items-center justify-center rounded-full mb-0.5
+                         transition-transform group-hover:scale-110"
+              style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 14%, transparent)` }}
+            >
+              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" style={{ color: meta.color }}>
+                <path d="M9 3.5v11M3.5 9h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="text-[12px] font-medium text-ink-subtle">{meta.emptyHint}</span>
+            <span className="text-[10px] opacity-70">Click to add</span>
           </button>
         )}
       </div>

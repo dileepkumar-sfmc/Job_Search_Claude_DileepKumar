@@ -92,7 +92,13 @@ The **Find Jobs** button in the top nav opens `components/JobSearch/JobSearchMod
 Because LLM web-search can't match a real job board's structured index, the modal also shows **live-board deep-links** (`lib/boards.ts` → `buildBoardLinks(prefs)`): it maps the same preference fields onto **Dice / LinkedIn / Indeed** search-query params (e.g. Dice `filters.postedDate`/`employmentType`/`workplaceTypes`, LinkedIn `f_TPR`/`f_WT`/`f_JT`, Indeed `fromage`) so one click opens the real board pre-filtered identically. These links update live with the form. To change board mappings, edit `lib/boards.ts`.
 
 ### Columns (single source of truth)
-The five pipeline columns are defined once in `src/lib/columns.ts` (`COLUMNS`, `COLUMN_IDS`, `COLUMN_BY_ID`) — id, label, and an accent `color` CSS var per column. The board, cards, and the drawer's status pills all read from this. Add or reorder columns here, not in individual components.
+The five pipeline columns are defined once in `src/lib/columns.ts` (`COLUMNS`, `COLUMN_IDS`, `COLUMN_BY_ID`) — id, label, an accent `color` CSS var, and an `emptyHint` (shown in the empty-column placeholder) per column. The board, cards, and the drawer's status pills all read from this. Add or reorder columns here, not in individual components.
+
+### Board overview UI
+- **Pipeline stats bar** (`components/Board/PipelineStats.tsx`) — a thin strip under the nav (rendered in `App.tsx` only when `jobs.length > 0`) showing Total · Active (applied+interview) · Interviews · Offers, plus a **response rate** = (interview+offer) / (applied+interview+offer+rejected). Interview/Offer get their `--status-*` accent dots.
+- **Card cues** (`JobCard.tsx`) — each card shows **"Nd in stage"** computed from `job.stageChangedAt ?? job.createdAt`; in-flight cards (applied/interview) idle ≥14 days get an amber **"⚠ Nd in stage"** stale flag (`text-status-interview`). The single ✦ badge became a **"✦ N" count** of generated docs with a tooltip naming them. `stageChangedAt` is set in `moveJob` (client-only — `jobToRowPatch` ignores it, so no DB schema change).
+- **Empty / first-run states** — each empty column shows its `emptyHint` with an accent-tinted add affordance (`KanbanColumn.tsx`); when the whole board is empty, `KanbanBoard` renders a centered welcome hero (Add first job + Find Jobs CTAs) instead of five empty columns.
+- **Column header polish** — count rendered as an accent-colored pill; a 2px stage-accent rule sits under each column header.
 
 ### Drag and drop
 Cards use `@dnd-kit/sortable` (`useSortable`) with a **dedicated drag handle** (grip icon, left edge of each card, visible on hover). The `{...listeners}` are spread only on the handle div — the rest of the card is a plain `onClick` target to open the detail drawer. This separates drag from click and prevents conflicts. Columns use `useDroppable`. Cross-column drops are resolved in `handleDragEnd` in `KanbanBoard.tsx`.

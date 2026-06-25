@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Job, ColumnId } from './types';
 import { KanbanBoard } from './components/Board/KanbanBoard';
+import { PipelineStats } from './components/Board/PipelineStats';
 import { AddJobModal } from './components/AddJob/AddJobModal';
 import { JobSearchModal } from './components/JobSearch/JobSearchModal';
 import { JobDetailDrawer } from './components/JobDetail/JobDetailDrawer';
@@ -123,11 +124,15 @@ export default function App() {
         </div>
       </header>
 
+      {/* Pipeline stats — only once there's something to summarize */}
+      {jobs.length > 0 && <PipelineStats jobs={jobs} />}
+
       {/* Board */}
       <main className="flex-1 overflow-hidden pt-6">
         <KanbanBoard
           onCardClick={setSelectedJob}
           onAddClick={(col) => setAddColumn(col ?? 'wishlist')}
+          onSearch={() => setShowSearch(true)}
         />
       </main>
 
