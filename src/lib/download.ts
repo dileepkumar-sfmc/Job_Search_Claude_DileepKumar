@@ -125,25 +125,44 @@ function buildResumeDocx(text: string, title: string): Promise<Blob> {
       return;
     }
 
-    // Line 1 → name (centered, large)
+    // Line 1 → name (centered, large, accent)
     if (idx === 0) {
       children.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 40 },
+          spacing: { after: 30 },
           children: [new TextRun({ text: line, bold: true, size: 34, font: FONT, color: ACCENT })],
         })
       );
       return;
     }
 
-    // Line 2 → contact (centered, small grey) when it looks like a contact line
-    if (idx <= 2 && line.includes('|') && !/^[A-Za-z][\w &/().+-]{0,30}:/.test(line)) {
+    // A contact line is pipe-separated AND carries an email / URL / phone. The
+    // professional-title line is ALSO pipe-separated ("Role | focus"), so we can't
+    // key off the pipe alone — check for contact markers to tell them apart.
+    const looksContact =
+      line.includes('|') &&
+      (/@/.test(line) || /https?:|www\.|linkedin|\.com|\.io|\.dev/i.test(line) || /\d{3}[\s.\-]?\d{3}/.test(line));
+
+    // Contact (centered, small grey) — line 2 or 3 depending on whether a title exists
+    if (idx <= 3 && looksContact) {
       children.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 120 },
           children: [new TextRun({ text: line.replace(/\s*\|\s*/g, '   |   '), size: 18, font: FONT, color: '555555' })],
+        })
+      );
+      return;
+    }
+
+    // Line 2 → professional title/headline (centered, medium grey)
+    if (idx === 1) {
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 40 },
+          children: [new TextRun({ text: line.replace(/\s*\|\s*/g, '  |  '), size: 23, font: FONT, color: '595959' })],
         })
       );
       return;
